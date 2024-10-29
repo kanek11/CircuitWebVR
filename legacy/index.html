@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebXR VR Demo</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        #enter-vr { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            padding: 20px; 
+            font-size: 18px; 
+            display: none; 
+            cursor: pointer; 
+            background-color: #007BFF; 
+            color: white; 
+            border: none; 
+        } 
+
+        #debug-text {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        padding: 5px 10px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        font-family: monospace;
+        font-size: 1em;
+        z-index: 100; /* Ensures it stays above the WebGL canvas */
+        pointer-events: none; /* Allows clicks to pass through to the canvas */ 
+   }
+    </style>
+</head>
+<body>
+
+
+<div id="debug-text">test ...</div>
+
+<div id="container" style="position: relative; width: 100%; height: 100%;">
+    <!-- Three.js 渲染器将被添加到这里 -->
+    <button id="enter-vr">Enter VR Click~</button>
+    <canvas id="xr-canvas"></canvas> 
+</div>
+ 
+
+<script type="module" src="/main.ts"></script>
+
+</body> 
+
+</html>

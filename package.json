@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.1",
+    "@types/three": "^0.169.0",
+    "@types/webxr": "^0.5.20",
+    "ammo": "^3.0.3",
+    "ammots": "^1.0.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}
