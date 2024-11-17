@@ -11,10 +11,9 @@ import { URenderer } from "./renderer";
 
 class WebXRApp {
   private session: XRSession | null = null;
-  private gl: WebGLRenderingContext | null = null;
   private button: HTMLButtonElement | null = null;
-  private xrRefSpace: XRReferenceSpace | null = null;
-
+  //private initRefSpace: XRReferenceSpace | null = null; 
+  //private gl: WebGLRenderingContext | null = null;
 
   private sessionInit: XRSessionInit = {
     'optionalFeatures': ['depth-sensing'],
@@ -35,15 +34,16 @@ class WebXRApp {
 
     await this.checkWebXRSupport();
 
-    const canvas = document.getElementById("xr-canvas") as HTMLCanvasElement | null;
-    if (!canvas) {
-      throw new Error("Canvas element not found");
-    }
-    const gl = canvas.getContext("webgl", { xrCompatible: true }) as WebGLRenderingContext | null;
-    if (!gl) {
-      throw new Error("Unable to initialize WebGL context");
-    }
-    this.gl = gl;
+    //handled by 3js
+    // const canvas = document.getElementById("xr-canvas") as HTMLCanvasElement | null;
+    // if (!canvas) {
+    //   throw new Error("Canvas element not found");
+    // }
+    // const gl = canvas.getContext("webgl", { xrCompatible: true }) as WebGLRenderingContext | null;
+    // if (!gl) {
+    //   throw new Error("Unable to initialize WebGL context");
+    // }
+    // this.gl = gl;
 
     const button = document.getElementById("enter-vr") as HTMLButtonElement;
     if (!button) {
@@ -90,17 +90,20 @@ class WebXRApp {
     };
 
     //enter VR
-    navigator.xr!.requestSession('immersive-vr', sessionOptions).then((session) => {
-      this.onSessionStarted(session);
-    });
+    this.session = await (navigator.xr!.requestSession('immersive-vr', sessionOptions) as Promise<XRSession | null>);
+    if (!this.session) {
+      console.error("Failed to start XR session.");
+      return;
+    }
+    this.onSessionStarted(this.session);
 
   }
 
 
   private async onSessionStarted(session: XRSession): Promise<void> {
 
+    session.addEventListener('end', () => this.onSessionEnded());
     await this.xrRenderer!.renderer.xr.setSession(session);
-    this.session = session;
     //this.xrRenderer!.startRender(this.session);
 
     console.log("XR session started.");
@@ -111,14 +114,15 @@ class WebXRApp {
   private async onSessionEnded(): Promise<void> {
     if (!this.button) { return; }
 
+    this.session!.removeEventListener('end', () => this.onSessionEnded());
+
     await this.session!.end().then(() => {
       //todo: clean up   
       this.button!.textContent = 'RE-ENTER VR';
       this.session = null;
-    }
-    ).catch((error) => {
-      console.error("Failed to end XR session:", error);
+      this.xrRenderer!.renderer.xr.setSession(null);
     });
+
 
     console.log("XR session ended.");
     this.button.style.display = "block"; // Show VR button again

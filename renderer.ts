@@ -15,7 +15,7 @@ export class URenderer {
     public renderer: THREE.WebGLRenderer;
     private scene: THREE.Scene | null = null;
     private camera: THREE.PerspectiveCamera | null = null;
-    private currenSession: XRSession | null = null;
+    //private currenSession: XRSession | null = null;
 
     private cube: THREE.Mesh | null = null;
 
@@ -36,14 +36,14 @@ export class URenderer {
 
     }
 
-    public startRender(session: XRSession | null): void {
+    // public startRender(session: XRSession | null): void {
 
-        if (!session) {
-            console.warn("render: no valid session attached");
-            return;
-        }
-        this.currenSession = session;
-    }
+    //     if (!session) {
+    //         console.warn("render: no valid session attached");
+    //         return;
+    //     }
+    //     this.currenSession = session;
+    // }
 
 
     private animationLoop(t: DOMHighResTimeStamp, frame: XRFrame): void {
