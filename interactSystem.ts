@@ -7,7 +7,7 @@ import { SRenderSystem } from "./renderSystem";
 
 export class SInteractSystem extends System {
     private raycaster: THREE.Raycaster = new THREE.Raycaster();
-    private pointer: THREE.Vector2 = new THREE.Vector2();
+    private pointer3D: THREE.Vector2 = new THREE.Vector2();
 
 
     static queries = {
@@ -19,13 +19,13 @@ export class SInteractSystem extends System {
 
     init(): void {
         console.log("init interact system");
-        document.addEventListener('pointermove', this.onPointerMove.bind(this));
+        document.addEventListener('pointermove', (event) => this.onPointerMove(event));
     }
 
     execute(delta: number, time: number): void {
         //console.log("execute interact system");
 
-        this.raycaster.setFromCamera(this.pointer, this.world.getSystem(SRenderSystem).top_camera!);
+        this.raycaster.setFromCamera(this.pointer3D, this.world.getSystem(SRenderSystem).top_camera!);
 
         const objs = this.queries.interactive.results;
 
@@ -53,8 +53,8 @@ export class SInteractSystem extends System {
 
     onPointerMove(event: PointerEvent): void {
         //console.log("pointer move");
-        this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+        this.pointer3D.x = (event.clientX / window.innerWidth) * 2 - 1;
+        this.pointer3D.y = - (event.clientY / window.innerHeight) * 2 + 1;
     }
 
 

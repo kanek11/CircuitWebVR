@@ -33,8 +33,15 @@ export class SRenderSystem extends System {
     init(): void {
 
         //this.renderer = new THREE.WebGLRenderer();
+        //this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+
         document.body.appendChild(this.renderer.domElement);
+
+
+        //resize
+        window.addEventListener('resize', () => this.onWindowResized());
 
         // //this.renderer.xr.enabled = true;
         // //this.renderer.xr.cameraAutoUpdate = false; 
@@ -45,18 +52,20 @@ export class SRenderSystem extends System {
         //document.body.appendChild(VRButton.createButton(this.renderer, sessionInit));
 
         //this.scene = new THREE.Scene();
-        this.main_camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const aspect = window.innerWidth / window.innerHeight;
+        this.main_camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
         this.main_camera.position.set(0, 1.7, 4); //override by vr   
         this.main_camera.lookAt(0, 0, 0);
 
-        const size = 1.0;
-        this.top_camera = new THREE.OrthographicCamera(-size, size, size, -size, 0.1, 1000);
+        const width = 2.0;
+        const height = width / aspect;
+        this.top_camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 0.1, 1000);
         this.top_camera.position.set(0, 5, 0);
         this.top_camera.lookAt(0, 0, 0);
 
 
         //new:
-        document.body.appendChild(this.stats.dom);
+        //document.body.appendChild(this.stats.dom);
 
     }
 
@@ -96,12 +105,35 @@ export class SRenderSystem extends System {
         });
 
         //new:
-        this.stats.update();
+        //this.stats.update();  ..off for now
 
         // Render the scene
         this.renderer!.setClearColor(0x505050);
         //this.renderer!.render(this.scene!, this.main_camera!);
         this.renderer!.render(this.scene!, this.top_camera!);
+    }
+
+
+    onWindowResized(): void {
+
+
+        this.renderer!.setSize(window.innerWidth, window.innerHeight);
+
+        const aspect = window.innerWidth / window.innerHeight;
+        this.main_camera!.aspect = aspect;
+        this.main_camera!.updateProjectionMatrix();
+
+
+        const width = 2.0;
+        const height = width / aspect;
+        this.top_camera!.left = width / - 2;
+        this.top_camera!.right = width / 2;
+        this.top_camera!.top = height / 2;
+        this.top_camera!.bottom = height / - 2;
+        this.top_camera!.updateProjectionMatrix();
+
+
+
     }
 
 

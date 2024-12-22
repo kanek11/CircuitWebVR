@@ -14,11 +14,11 @@ todo: rotation range?
 /**
  * entt that can be added to the scene
  */
-export class CSceneProxy extends Component<CSceneProxy> {
+export class CPrototype extends Component<CPrototype> {
     name!: string;
 
     static schema = {
-        name: { type: Types.String, default: 'defaultObject' }
+        name: { type: Types.String, default: 'defaultObject' },
     } as const;
 
 }
@@ -28,6 +28,9 @@ export class CInteractable extends Component<CInteractable> {
     //     interactable: { type: Types.Boolean, default: true }
     // };
 }
+
+
+export class CRenderable extends TagComponent { }
 
 
 // Transform component to store position and rotation
@@ -43,9 +46,6 @@ export class CTransform extends Component<CTransform> {
     } as const;
 }
 
-
-
-export class CRenderable extends TagComponent { }
 
 //three objects added to the scene
 export class CObject3D extends Component<CObject3D> {

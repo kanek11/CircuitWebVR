@@ -28,21 +28,21 @@ class App {
       .registerComponent(COMP.CTransform)
       .registerComponent(COMP.CObject3D)
       .registerComponent(COMP.CInteractable)
-      .registerComponent(COMP.CSceneProxy)
+      .registerComponent(COMP.CPrototype)
       .registerSystem(SRenderSystem)
       .registerSystem(SInteractSystem)
       .registerSystem(MyGUI.SBrowserSystem);
 
 
-    ENTT.createBox(this.world);
     ENTT.createGrid(this.world);
-    ENTT.createFloor(this.world);
+    //ENTT.createFloor(this.world);
 
+
+    ENTT.createBoxPrototype(this.world);
 
   }
 
 }
-
 
 
 const app = new App();
