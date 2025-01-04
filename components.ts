@@ -1,5 +1,7 @@
+import { debug } from 'console';
 import { World, System, Component, Entity, Types, TagComponent, JSONPropType } from 'ecsy';
 import { LineSegments, Mesh, Object3D } from 'three';
+import * as THREE from 'three';
 
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
@@ -29,20 +31,19 @@ export class CInteractable extends Component<CInteractable> {
     // };
 }
 
-
 export class CRenderable extends TagComponent { }
 
 
 // Transform component to store position and rotation
 export class CTransform extends Component<CTransform> {
-    position!: { x: number; y: number; z: number };
-    rotation!: { x: number; y: number; z: number };
-    scale!: { x: number; y: number; z: number };
+    position!: THREE.Vector3;
+    rotation!: THREE.Vector3;
+    scale!: THREE.Vector3;
 
     static schema = {
-        position: { type: Types.JSON, default: { x: 'name', y: 0, z: 0 }, min: -1, max: 1 },
-        rotation: { type: Types.JSON, default: { x: 0, y: 0, z: 0 }, min: 0, max: 2 * 3.14 },
-        scale: { type: Types.JSON, default: { x: 1, y: 1, z: 1 }, min: 0.1, max: 1 },
+        position: { type: Types.Ref, default: new THREE.Vector3(0, 0, 0) },
+        rotation: { type: Types.Ref, default: new THREE.Vector3(0, 0, 0) },
+        scale: { type: Types.Ref, default: new THREE.Vector3(1, 1, 1) },
     } as const;
 }
 
@@ -57,20 +58,67 @@ export class CObject3D extends Component<CObject3D> {
 }
 
 
-class CImpendance extends Component<CImpendance> {
+export class CElement extends Component<CElement> {
+    nodeL!: Entity;
+    nodeR!: Entity;
+    current!: number;
+    debugID!: number;
+    static schema = {
+        nodeL: { type: Types.Ref, default: null },
+        nodeR: { type: Types.Ref, default: null },
+        current: { type: Types.Number, default: 0 },
+        debugID: { type: Types.Number, default: -1 },
+    };
+}
+
+//alias of max possible value 
+export const INVALID_SLOT = Number.MAX_VALUE;
+
+export class CNode extends Component<CNode> {
+    element!: Entity;
+    slotID!: number;
+    voltage!: number;
+
+    debugID!: number;
+    static schema = {
+        element: { type: Types.Ref, default: null },
+        slotID: { type: Types.Number, default: INVALID_SLOT },
+        voltage: { type: Types.Number, default: 0 },
+        debugID: { type: Types.Number, default: -1 },
+    };
+}
+
+export class CResistance extends Component<CResistance> {
     value!: number;
 
     static schema = {
-        value: { type: Types.JSON, default: 0 }
+        value: { type: Types.Number, default: 1 }
     } as const;
 }
 
-class CDCVoltage extends Component<CDCVoltage> {
+
+export class CVoltage extends Component<CVoltage> {
     value!: number;
 
     static schema = {
-        value: { type: Types.JSON, default: 0 }
+        value: { type: Types.Number, default: 1 }
     } as const;
 }
 
+
+export class CInductance extends Component<CInductance> {
+    value!: number;
+
+    static schema = {
+        value: { type: Types.Number, default: 1 }
+    } as const;
+}
+
+export class CCapacitance extends Component<CCapacitance> {
+    value!: number;
+
+    static schema = {
+        value: { type: Types.Number, default: 1 }
+    } as const;
+}
 

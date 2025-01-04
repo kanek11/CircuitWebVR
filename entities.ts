@@ -7,48 +7,130 @@ import { World, System, Component, Types, Entity } from 'ecsy';
 import * as COMP from "./components";
 
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
-import * as MyGUI from './GUISystem';
+import * as MyGUI from './BrowserSystem';
 import { create } from 'domain';
 
 
 
-export const spawnEntity = (world: World, factory: (world: World) => Entity): Entity => {
+export const spawnEntity = (world: World, factory: (world: World) => Entity, position: THREE.Vector3): Entity => {
 
     const entt = factory(world);
 
     entt.addComponent(COMP.CInteractable);
     entt.addComponent(COMP.CRenderable);
 
+    if (entt.hasComponent(COMP.CTransform)) { entt.getMutableComponent(COMP.CTransform)!.position = position; }
+
+
+    if (entt.hasComponent(COMP.CElement)) {
+
+        const setNode = (node: Entity, offset: number) => {
+
+            node.addComponent(COMP.CInteractable);
+            node.addComponent(COMP.CRenderable);
+
+            node.addComponent(COMP.CNode, { element: entt });
+
+            if (node.hasComponent(COMP.CTransform)) {
+                const pos = node.getMutableComponent(COMP.CTransform)!.position;
+                pos.x = position.x + offset;
+                pos.y = position.y;
+                pos.z = position.z;
+            }
+        }
+
+        const nodeL = entt.getComponent(COMP.CElement)!.nodeL;
+        setNode(nodeL, +0.1);
+
+        const nodeR = entt.getComponent(COMP.CElement)!.nodeR;
+        setNode(nodeR, -0.1);
+
+    }
+
     return entt;
 }
 
-export const createBoxPrototype = (world: World): Entity => {
 
-    const entity = createBox(world);
-    entity.addComponent(COMP.CPrototype, { name: 'box' });
+export const createCapacitor = (world: World): Entity => {
+
+    const entity = createElement(world);
+    entity.addComponent(COMP.CCapacitance, { value: 1 });
+
+    return entity;
+}
+
+
+export const createInductor = (world: World): Entity => {
+
+    const entity = createElement(world);
+    entity.addComponent(COMP.CInductance, { value: 1 });
+
     return entity;
 }
 
 
 
-export const createBox = (world: World): Entity => {
+export const createResistor = (world: World): Entity => {
+
+    const entity = createElement(world);
+    entity.addComponent(COMP.CResistance, { value: 1 });
+
+    return entity;
+}
+
+export const createDCVoltage = (world: World): Entity => {
+
+    const entity = createElement(world);
+    entity.addComponent(COMP.CVoltage, { value: 1 });
+
+    return entity;
+}
+
+
+
+export const createElement = (world: World): Entity => {
 
     const boxGeometry = new BoxGeometry(1, 1, 1);
     const boxMaterial = new MeshBasicMaterial({ color: 0x00ff00 });
     const boxMesh = new Mesh(boxGeometry, boxMaterial);
 
-    const entity = world.createEntity();
-    entity.addComponent(COMP.CObject3D, { object: boxMesh });
-    entity.addComponent(COMP.CTransform, {
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 0.1, y: 0.1, z: 0.1 }
+    const element = world.createEntity();
+    element.addComponent(COMP.CObject3D, { object: boxMesh });
+
+    const nodeSize = 0.05;
+
+    element.addComponent(COMP.CTransform, {
+        position: new THREE.Vector3(0, 0, 0),
+        rotation: new THREE.Vector3(0, 0, 0),
+        scale: new THREE.Vector3(nodeSize * 1.5, nodeSize, nodeSize)
     });
 
 
-    return entity;
-    //const gui = new GUI();
-    //MyGUI.showPropertiesGUI(entity, gui); 
+    const node = () => {
+        const node = world.createEntity();
+
+        const boxGeometry = new BoxGeometry(1, 1, 1);
+        const boxMaterial = new MeshBasicMaterial({ color: 0xff0000 });
+        const boxMesh = new Mesh(boxGeometry, boxMaterial);
+
+        node.addComponent(COMP.CObject3D, { object: boxMesh });
+
+        node.addComponent(COMP.CTransform, {
+            position: new THREE.Vector3(0, 0, 0),
+            rotation: new THREE.Vector3(0, 0, 0),
+            scale: new THREE.Vector3(nodeSize, nodeSize, nodeSize)
+        });
+        return node;
+    }
+
+
+    const _nodeL = node();
+    const _nodeR = node();
+
+    element.addComponent(COMP.CElement, { nodeL: _nodeL, nodeR: _nodeR });
+
+
+    return element;
 }
 
 
@@ -61,8 +143,9 @@ export const createFloor = (world: World) => {
 
     const entity = world.createEntity();
     entity.addComponent(COMP.CTransform, {
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
+        position: new THREE.Vector3(0, -0.1, 0),
+        rotation: new THREE.Vector3(0, 0, 0),
+        scale: new THREE.Vector3(1, 1, 1)
     });
     entity.addComponent(COMP.CObject3D, { object: floorMesh });
 
@@ -74,24 +157,3 @@ export const createFloor = (world: World) => {
 
 
 
-
-export const createGrid = (world: World) => {
-
-    // const grid = new THREE.LineSegments(
-    //     new BoxLineGeometry(6, 6, 6, 10, 10, 10).translate(0, 3, 0),
-    //     new THREE.LineBasicMaterial({ color: 0xbcbcbc })
-    // );
-    const grid = new THREE.GridHelper(1, 20, 0xff0000, 0x808080);
-
-    const entity = world.createEntity();
-    entity.addComponent(COMP.CTransform, {
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
-    });
-
-    entity.addComponent(COMP.CObject3D, { object: grid });
-
-
-    entity.addComponent(COMP.CRenderable);
-
-}
