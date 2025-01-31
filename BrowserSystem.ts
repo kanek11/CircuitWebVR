@@ -105,7 +105,7 @@ export class SBrowserSystem extends System {
         //const worldPosition = Utils.PixelToWorld(event, this.world.getSystem(SRenderSystem).top_camera!);
 
         const interactSystem = this.world.getSystem(SInteractSystem);
-        const worldPosition = interactSystem.getIntersectionWithPlane(event);
+        const worldPosition = interactSystem.getIntersectionWithPlane();
 
         const instance = ENTT.spawnEntity2(this.world, this.currentFactory!, worldPosition);
         //todo: more debug info?  

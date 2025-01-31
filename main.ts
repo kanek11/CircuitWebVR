@@ -16,7 +16,7 @@ import * as COMP from "./components";
 import * as ENTT from "./entities";
 
 import { SRenderSystem, ViewMode } from "./renderSystem";
-import { SInteractSystem, SXRInteractSystem, createGrid } from "./interactSystem";
+import { SInteractSystem, SXRInteractSystemL, SXRInteractSystemR, createGrid } from "./interactSystem";
 import { SSimulateSystem } from "./simulateSystem";
 import { SElementBehaviorSystem, SCurrentRenderSystem } from './behaviorSystem';
 import { SLabelSystem } from './labelSystem';
@@ -179,7 +179,7 @@ function setupGlobalControls(world: World, app: App) {
 
   const serializeSystem = world.getSystem(SSerializeSystem);
 
-  const group = renderSystem.streamGroup;
+  const group = renderSystem.interactiveGroup;
 
   // systemGUI.add({ saveScene: () => Utils.saveObject3D(group), }, 'saveScene').name('Save Scene');
 
@@ -342,16 +342,32 @@ class App {
     const renderSystem = this.world.getSystem(SRenderSystem);
     renderSystem.initXR();
 
-    const hp0 = renderSystem.getHandPointerByIndex(0);
+    renderSystem.setVRButtonClickCallback(() => {
 
-    this.world.registerSystem(SXRInteractSystem);
 
-    if (hp0) {
-      this.world.getSystem(SXRInteractSystem).setHandPointer(hp0);
-    }
-    else {
-      console.error("no hand pointer found");
-    }
+      this.world.registerSystem(SXRInteractSystemL);
+
+      const hp0 = renderSystem.getHandPointerByIndex(0);
+      if (hp0) {
+        console.log("hand pointer0 found");
+        this.world.getSystem(SXRInteractSystemL).setHandPointer(hp0);
+      }
+      else {
+        console.error("no hand pointer found");
+      }
+
+
+      this.world.registerSystem(SXRInteractSystemR);
+
+      const hp1 = renderSystem.getHandPointerByIndex(1);
+      if (hp1) {
+        console.log("hand pointer1 found:");
+        this.world.getSystem(SXRInteractSystemR).setHandPointer(hp1);
+      }
+      else {
+        console.error("no hand pointer found");
+      }
+    });
 
   }
 

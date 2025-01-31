@@ -54,7 +54,7 @@ export const createGrid = (world: World, gridSize: number, gridNum: number) => {
     //disable raycast
     grid.raycast = () => [];
 
-    world.getSystem(SRenderSystem).addToTopLevelScene(grid);
+    world.getSystem(SRenderSystem).addToSupportGroup(grid);
 
     //new: a table model under the grid
     const table = new THREE.Mesh(
@@ -68,7 +68,7 @@ export const createGrid = (world: World, gridSize: number, gridNum: number) => {
 
     table.position.y = -0.05 - 0.0125;
 
-    world.getSystem(SRenderSystem).addToTopLevelScene(table);
+    world.getSystem(SRenderSystem).addToSupportGroup(table);
 
 }
 
@@ -129,8 +129,10 @@ export class SInteractSystem extends System {
 
     public bDragging: boolean = false;
     public hoveredEntity: Entity | null = null;
+    public rayDistance: number = 0;
 
-    private virtualPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    private renderSystemRef: SRenderSystem | null = null;
+    public basePlane: THREE.Plane | null = null;
 
     // 
     static queries = {
@@ -143,10 +145,15 @@ export class SInteractSystem extends System {
     init(): void {
         console.log("init interact system");
 
+        this.renderSystemRef = this.world.getSystem(SRenderSystem)!;
+        this.basePlane = this.renderSystemRef.basePlane;
 
-        document.addEventListener('pointermove', (event) => this.onPointerMove(event));
-        document.addEventListener('pointerdown', (event) => this.onPointerDown(event));
-        document.addEventListener('pointerup', (event) => this.onPointerUp(event));
+        if (this.renderSystemRef.viewMode != 'VR') {
+            document.addEventListener('pointermove', (event) => this.onPointerMove(event));
+            document.addEventListener('pointerdown', (event) => this.onPointerDown(event));
+            document.addEventListener('pointerup', (event) => this.onPointerUp(event));
+        }
+
     }
 
     execute(delta: number, time: number): void {
@@ -204,7 +211,7 @@ export class SInteractSystem extends System {
         else {
             if (!this.hoveredEntity) { console.error("interact: unexpected that dragging without hovered entity"); return; }
 
-            const worldPosition = this.getIntersectionWithPlane(event);
+            const worldPosition = this.getIntersectionWithPlane();
             this.moveEntity(worldPosition, this.hoveredEntity);
             renderSystem.disableCameraControl();
         }
@@ -232,10 +239,10 @@ export class SInteractSystem extends System {
         //if no hit, then check the whole scene
         if (intersects.length == 0) {
 
-            const scene = this.world.getSystem(SRenderSystem).scene!;
+            const streamGroup = this.world.getSystem(SRenderSystem).interactiveGroup;
 
             //arg2 st the test is recursive;
-            intersects = this.raycaster.intersectObjects(scene.children, true);
+            intersects = this.raycaster.intersectObjects(streamGroup.children, true);
         }
 
         //if still no hit, a miss.
@@ -247,6 +254,10 @@ export class SInteractSystem extends System {
 
 
         //console.log("interact: hit objects num: " + intersects.length);
+        const intersection = intersects[0];
+        // console.log("interact: hit object name: " + intersection.object.name);
+        // console.log("interact: hit object position: " + intersection.point.x + " " + intersection.point.y + " " + intersection.point.z);
+        this.rayDistance = intersection.distance;
         const hitObj = intersects[0].object;
 
         //utilize Array.find
@@ -267,7 +278,7 @@ export class SInteractSystem extends System {
 
 
         } else {
-            //console.log("interact: hit but invalid object: " + hitObj.name);
+            //console.log("interact: hit invalid object: " + hitObj.name);
 
             this.deHoverEntity();
 
@@ -407,13 +418,23 @@ export class SInteractSystem extends System {
 
 
 
-    getIntersectionWithPlane(event: PointerEvent): THREE.Vector3 {
-
-        const intersection = new THREE.Vector3();
+    getIntersectionWithPlane(): THREE.Vector3 {
 
         //utilize built-in ray-plane intersection
-        this.raycaster.ray.intersectPlane(this.virtualPlane, intersection);
 
+        const intersection = new THREE.Vector3();
+        if (!this.basePlane) {
+            console.error("interact: no intersect plane");
+            return intersection;
+        }
+
+        this.raycaster.ray.intersectPlane(this.basePlane, intersection);
+        console.log("interact: intersection: " + intersection.x + " " + intersection.y + " " + intersection.z);
+
+
+        if (this.renderSystemRef!.viewMode == 'VR') {
+            intersection.z += 0.6;
+        }
         return intersection;
     }
 
@@ -421,12 +442,13 @@ export class SInteractSystem extends System {
 }
 
 
-export class SXRInteractSystem extends SInteractSystem {
+export class SXRInteractSystemL extends SInteractSystem {
 
     public handPointer: OculusHandPointerModel | null = null;
 
     init(): void {
-        //super.init(); 
+        super.init();
+        //this.basePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
         console.log("init xr interact system");
     }
 
@@ -443,15 +465,24 @@ export class SXRInteractSystem extends SInteractSystem {
     setHandPointer(handPointer: OculusHandPointerModel): void {
         this.handPointer = handPointer;
     }
-
-
     updateXR(): void {
         //console.log("interact: update xr");
 
         const hp = this.handPointer!;
 
-        this.updateRaycasterXR();
+        this.raycaster = this.handPointer!.raycaster;
+        //this.updateRaycasterXR();
+        //this.getIntersectionWithPlane();
+
         this.onPointerMove(new PointerEvent('pointermove'), false);
+
+        //new: update cursor 
+        if (this.hoveredEntity) {
+            hp.setCursor(this.rayDistance);
+        }
+        else {
+            hp.setCursor(0.5);
+        }
 
         if (hp.isPinched()) {
             this.onPointerDown(new PointerEvent('pointerdown'));
@@ -463,12 +494,25 @@ export class SXRInteractSystem extends SInteractSystem {
 
     }
 
-
     updateRaycasterXR(): void {
 
-        this.raycaster = this.handPointer!.raycaster;
+
+        // console.log("interact: ray origin: " + this.raycaster.ray.origin.x + " " + this.raycaster.ray.origin.y + " " + this.raycaster.ray.origin.z);
+        // console.log("interact: ray direction: " + this.raycaster.ray.direction.x + " " + this.raycaster.ray.direction.y + " " + this.raycaster.ray.direction.z);
     }
 
+}
+
+export class SXRInteractSystemR extends SXRInteractSystemL {
+
+    // init(): void {
+    //     super.init();
+    //     console.log("init xr interact system");
+    // }
+
+    // execute(delta: number, time: number): void {
+    //     super.execute(delta, time);
+    // }
 
 
 }

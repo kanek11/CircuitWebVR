@@ -44,7 +44,9 @@ export class SRenderSystem extends System {
     //it needs correct resolution, so init is delayed  
 
     public scene: Scene = new THREE.Scene();
-    public streamGroup: Group = new THREE.Group();  //for saving and loading
+    public interactiveGroup: Group = new THREE.Group();  //for saving and loading
+    public supportGroup: Group = new THREE.Group();  //not saved but relevant
+    public basePlane = new THREE.Plane(new Vector3(0, 1, 0), 0);  //pure math
 
     private stats: Stats = new Stats();
 
@@ -62,6 +64,8 @@ export class SRenderSystem extends System {
     public guiGroup: InteractiveGroup | null = null;
     public handPointers: OculusHandPointerModel[] = [];
 
+    public vrButton: HTMLElement | null = null;
+
 
     static queries = {
         renderables: {
@@ -71,14 +75,24 @@ export class SRenderSystem extends System {
     };
 
 
-    replaceStreamGroup(obj: THREE.Group) {
+    replaceInteractiveGroup(obj: THREE.Group) {
 
-        this.streamGroup.clear();
-        this.scene.remove(this.streamGroup);
+        this.interactiveGroup.clear();
+        this.scene.remove(this.interactiveGroup);
 
-        this.streamGroup = obj;
+        this.interactiveGroup = obj;
         this.scene.add(obj);
     }
+
+    addToInteractiveGroup(obj: THREE.Object3D) {
+        this.interactiveGroup.add(obj);
+    }
+
+    addToSupportGroup(obj: THREE.Object3D) {
+        this.supportGroup.add(obj);
+    }
+
+
 
     disableCameraControl() {
         if (this.cameraControl !== null) {
@@ -93,9 +107,6 @@ export class SRenderSystem extends System {
     }
 
 
-    addToTopLevelScene(obj: THREE.Object3D) {
-        this.scene.add(obj);
-    }
 
     //new:
     setViewMode(mode: ViewMode) {
@@ -125,9 +136,11 @@ export class SRenderSystem extends System {
     init(): void {
         console.log("init render system");
 
-        this.scene.name = "threejs scene";
-        this.streamGroup.name = "streamming group";
-        this.scene.add(this.streamGroup);
+        this.scene.name = "threejs top-level scene";
+        this.interactiveGroup.name = "streamming group";
+        this.supportGroup.name = "support group";
+        this.scene.add(this.interactiveGroup);
+        this.scene.add(this.supportGroup);
 
         //this.renderer = new THREE.WebGLRenderer();
         this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -163,7 +176,7 @@ export class SRenderSystem extends System {
 
         //new:
         const axesHelper = new THREE.AxesHelper(1);
-        this.scene.add(axesHelper);
+        axesHelper.renderOrder = Globals.axisRenderOrder;
 
         axesHelper.name = "axesHelper";
         axesHelper.raycast = () => null;
@@ -204,7 +217,12 @@ export class SRenderSystem extends System {
             new BoxLineGeometry(6, 6, 6, 10, 10, 10).translate(0, 3, 0),
             new THREE.LineBasicMaterial({ color: 0xbcbcbc })
         );
+        debugRoom.name = "debugRoom";
+        debugRoom.renderOrder = -1;
+        debugRoom.raycast = () => null;
+
         this.scene.add(debugRoom);
+
 
     }
 
@@ -244,7 +262,7 @@ export class SRenderSystem extends System {
 
             if (entity.hasComponent(COMP.CObject3D)) {
                 const cObj = entity.getComponent(COMP.CObject3D)!;
-                this.streamGroup!.add(cObj.group);
+                this.interactiveGroup!.add(cObj.group);
             }
 
         });
@@ -315,6 +333,16 @@ export class SRenderSystem extends System {
     initXR(): void {
         console.log("init XR");
 
+        //
+        const height = 0.6;
+        const forward = 0.6;
+        this.interactiveGroup.position.y = height;
+        this.interactiveGroup.position.z = -forward;
+        this.supportGroup.position.y = height;
+        this.supportGroup.position.z = -forward;
+        this.basePlane.constant = -height; //warn: negative y goes the normal direction
+
+
         this.renderer.xr.enabled = true;
         this.renderer.xr.cameraAutoUpdate = false;
 
@@ -322,10 +350,19 @@ export class SRenderSystem extends System {
             requiredFeatures: ['hand-tracking']
         };
 
-        document.body.appendChild(VRButton.createButton(this.renderer, sessionInit));
+        const vrButton = VRButton.createButton(this.renderer, sessionInit);
+        document.body.appendChild(vrButton);
+        this.vrButton = vrButton;
 
 
         this.initXRControls();
+    }
+
+    setVRButtonClickCallback(callback: () => void) {
+
+        if (this.vrButton !== null) {
+            this.vrButton.addEventListener('click', callback);
+        }
     }
 
     getHandPointerByIndex(handIndex: number): OculusHandPointerModel | null {
@@ -343,16 +380,20 @@ export class SRenderSystem extends System {
 
         // controllers
         const controller1 = renderer.xr.getController(0);
+        controller1.name = "controller1";
         const controller2 = renderer.xr.getController(1);
+        controller2.name = "controller2";
 
         const controllerModelFactory = new XRControllerModelFactory();
 
         // Hand 1
         const controllerGrip1 = renderer.xr.getControllerGrip(0);
+        controllerGrip1.name = "controllerGrip1";
         controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
 
 
         const hand1 = renderer.xr.getHand(0);
+        hand1.name = "hand1";
         hand1.add(new OculusHandModel(hand1));
         const handPointer1 = new OculusHandPointerModel(hand1, controller1);
         hand1.add(handPointer1);
@@ -360,13 +401,15 @@ export class SRenderSystem extends System {
 
         // Hand 2
         const controllerGrip2 = renderer.xr.getControllerGrip(1);
+        controllerGrip2.name = "controllerGrip2";
         controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
 
         const hand2 = renderer.xr.getHand(1);
+        hand2.name = "hand2";
         hand2.add(new OculusHandModel(hand2));
         const handPointer2 = new OculusHandPointerModel(hand2, controller2);
         hand2.add(handPointer2);
-        this.handPointers.push(handPointer1);
+        this.handPointers.push(handPointer2);
 
 
 

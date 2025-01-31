@@ -5,8 +5,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
     server: {
         https: {
-            key: fs.readFileSync(path.resolve(process.cwd(), 'key.pem')),
-            cert: fs.readFileSync(path.resolve(process.cwd(), 'cert.pem')),
+            key: fs.readFileSync(path.resolve(process.cwd(), './localhost+1-key.pem')),
+            cert: fs.readFileSync(path.resolve(process.cwd(), './localhost+1.pem')),
         }
     }
 })

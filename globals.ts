@@ -23,7 +23,7 @@ export const Globals = {
 
     renderMode: 'arrow' as RenderMode,
 
-    axisRenderOrder: 996,
+    axisRenderOrder: 1000,
     gridRenderOrder: 995,
 
     //dark:  
