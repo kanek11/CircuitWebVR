@@ -5,9 +5,11 @@ import { World, Entity, System } from "ecsy";
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import * as COMP from "./components";
+import * as ENTT from "./entities";
 import { SRenderSystem } from "./renderSystem";
 import { SSimulateSystem } from "./simulateSystem";
 
+import { Globals } from "./globals";
 import * as Utils from "./utils";
 
 /**
@@ -18,63 +20,133 @@ import * as Utils from "./utils";
  * todo: maybe extract the grid thing;
  */
 
+import { OculusHandPointerModel } from 'three/examples/jsm/webxr/OculusHandPointerModel.js';
+import { on } from "events";
+import { i } from "mathjs";
 
-const createGrid = (world: World, gridSize: number, gridNum: number) => {
+
+function getElementAndNode(entity: Entity): [Entity, Entity, Entity] {
+    if (entity.hasComponent(COMP.CElement)) {
+        const cElement = entity.getComponent(COMP.CElement)!;
+        return [entity, cElement.nodeL, cElement.nodeR];
+
+    }
+    if (entity.hasComponent(COMP.CNode)) {
+        const element = entity.getComponent(COMP.CNode)!.element;
+        const cElement = element.getComponent(COMP.CElement)!;
+        return [element, cElement.nodeL, cElement.nodeR];
+    }
+    else
+        throw new Error("get invalid entity");
+
+}
+
+
+// const grid = new THREE.LineSegments(
+//     new BoxLineGeometry(6, 6, 6, 10, 10, 10).translate(0, 3, 0),
+//     new THREE.LineBasicMaterial({ color: 0xbcbcbc })
+// ); 
+export const createGrid = (world: World, gridSize: number, gridNum: number) => {
 
     //inherit from LineSegments
-    // const grid = new THREE.LineSegments(
-    //     new BoxLineGeometry(6, 6, 6, 10, 10, 10).translate(0, 3, 0),
-    //     new THREE.LineBasicMaterial({ color: 0xbcbcbc })
-    // ); 
-    const grid = new THREE.GridHelper(gridSize, gridNum, 0x000000, 0x000000);
+    const grid = new THREE.GridHelper(gridSize, gridNum, 0xff0000, 0x000000);
+    grid.name = "grid";
+    //disable raycast
+    grid.raycast = () => [];
 
-    const entity = world.createEntity();
-    entity.addComponent(COMP.CTransform, {
-        position: new THREE.Vector3(0, 0, 0),
-        rotation: new THREE.Vector3(0, 0, 0),
-    });
+    world.getSystem(SRenderSystem).addToTopLevelScene(grid);
 
-    entity.addComponent(COMP.CObject3D, { object: grid });
+    //new: a table model under the grid
+    const table = new THREE.Mesh(
+        new THREE.BoxGeometry(gridSize, 0.1, gridSize),
+        new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 1.0, metalness: 0.0 })
+    );
 
-    entity.addComponent(COMP.CRenderable);
+    //for now, depend on node size
+    table.name = "table";
+    table.raycast = () => [];
+
+    table.position.y = -0.05 - 0.0125;
+
+    world.getSystem(SRenderSystem).addToTopLevelScene(table);
 
 }
 
 
 
-export class SInteractSystem extends System {
-    private gui: GUI = new GUI();
+//todo:xyz is kinda messy here
+function snapPosToGrid(position: THREE.Vector3): number {
 
-    private raycaster: THREE.Raycaster = new THREE.Raycaster();
+    const spacing = Globals.gridSpacing;
+    const gridNum = Globals.gridNum;
+
+    //grid node index: 
+    const gridIndexX = Math.round(position.x / spacing);
+    const gridIndexY = Math.round(position.y / spacing);
+    const gridIndexZ = Math.round(position.z / spacing);
+
+    position.x = gridIndexX * spacing;
+    position.y = gridIndexY * spacing;
+    position.z = gridIndexZ * spacing;
+
+    const slotID = gridIndexX + gridIndexZ * gridNum;
+    return slotID;
+}
+
+function snapNode(thisNode: Entity): void {
+
+    const position = thisNode.getMutableComponent(COMP.CTransform)!.position;
+    const slotID = snapPosToGrid(position);
+
+    const node = thisNode.getMutableComponent(COMP.CNode)!;
+    node.slotID = slotID;
+
+}
+
+
+
+export function snapElement(thisElement: Entity): void {
+    if (!thisElement.hasComponent(COMP.CElement)) {
+        console.error("intersect:not a element!.");
+        return;
+    }
+    const cElement = thisElement.getComponent(COMP.CElement)!;
+
+    snapNode(cElement.nodeL);
+    snapNode(cElement.nodeR);
+
+    ENTT.OnNodesChange(thisElement);
+}
+
+
+
+
+export class SInteractSystem extends System {
+    public gui: GUI = new GUI({ autoPlace: true, title: 'Properties' });
+
+    public raycaster: THREE.Raycaster = new THREE.Raycaster();
     private pointerNDC: THREE.Vector2 = new THREE.Vector2();
 
-    private selectedEntity: Entity | null = null;
-    private bDragging: boolean = false;
+    public bDragging: boolean = false;
+    public hoveredEntity: Entity | null = null;
 
-
-    private gridSize: number = 1;
-    private gridNum: number = 20;
-    private gridSpacing: number = 1 / this.gridNum;
-
+    private virtualPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
     // 
     static queries = {
         interactives: {
-            components: [COMP.CInteractable],
-            listen: { added: true, removed: true }
-        }
+            components: [COMP.CObject3D],
+            listen: { added: true, removed: true, changed: [COMP.CObject3D] }
+        },
     };
 
     init(): void {
         console.log("init interact system");
 
+
         document.addEventListener('pointermove', (event) => this.onPointerMove(event));
         document.addEventListener('pointerdown', (event) => this.onPointerDown(event));
         document.addEventListener('pointerup', (event) => this.onPointerUp(event));
-
-        //document.addEventListener('click', () => this.onClick());
-
-        createGrid(this.world, this.gridSize, this.gridNum);
     }
 
     execute(delta: number, time: number): void {
@@ -83,236 +155,323 @@ export class SInteractSystem extends System {
 
 
     onPointerDown(event: PointerEvent): void {
-        console.log("interact: pointer down");
-        this.bDragging = true;
 
-        //console.log("pointer move");
-        this.pointerNDC.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.pointerNDC.y = - (event.clientY / window.innerHeight) * 2 + 1;
-        this.raycaster.setFromCamera(this.pointerNDC, this.world.getSystem(SRenderSystem).top_camera!);
-
-
-        const scene = this.world.getSystem(SRenderSystem).scene!;
-
-        const intersects = this.raycaster.intersectObjects(scene.children);
-        if (intersects.length > 0) {
-            const obj = intersects[0].object;
-            //this.selectedObject = obj;
-            //console.log("interact: intersected with uuid: " + obj.uuid);
-
-            //todo: only consider mesh for now
-            if (obj instanceof THREE.Mesh) {
-                // const material = (obj as THREE.Mesh).material as THREE.MeshBasicMaterial;
-                // material.color.set(0xff0000);
-            }
-            else {
-                console.log("interact: unhandled: not a mesh");
-            }
-
-            //find the entity
-
-            let found: boolean = false;
-            const objs = this.queries.interactives.results;
-            objs.forEach(entity => {
-
-                if (entity.hasComponent(COMP.CObject3D)) {
-                    const cObj = entity.getComponent(COMP.CObject3D)!;
-
-                    if (cObj.object.uuid === obj.uuid) {
-                        //console.log("found entity!");
-
-                        this.selectedEntity = entity;
-                        this.hightlightObject(obj);
-                        found = true;
-                    }
-
-                }
-                else { console.log("interact:  unhandled entity without object3D component"); }
-            });
-
-            if (!found) {
-                console.log("interact: not found entity!");
-                this.deSelectObject();
-            }
-
+        if (this.hoveredEntity) {
+            this.bDragging = true;
+        }
+        else {
+            this.deClick();
         }
 
+    }
+
+
+    onPointerUp(event: PointerEvent): void {
+        if (this.bDragging) {
+
+            //you can add condition for click here;
+            this.onClick(this.hoveredEntity!);
+            this.bDragging = false;
+        }
+    }
+
+    updateRaycaster(event: PointerEvent): void {
+
+        //new: always make sure the raycaster is updated
+        this.pointerNDC.x = (event.clientX / window.innerWidth) * 2 - 1;
+        this.pointerNDC.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+        this.raycaster.setFromCamera(this.pointerNDC, this.world.getSystem(SRenderSystem).getCurrentCamera());
     }
 
 
     //drag
-    onPointerMove(event: PointerEvent): void {
-        if (this.selectedEntity && this.bDragging) {
-            //update the position of the object 
+    onPointerMove(event: PointerEvent, needUpdateRay: boolean = true): void {
+        //console.log("interact: pointer move");
 
-            const worldPosition = Utils.ScreenToWorld(event, this.world.getSystem(SRenderSystem).top_camera!);
+        if (needUpdateRay)
+            this.updateRaycaster(event);
 
-            //
-            if (this.selectedEntity.hasComponent(COMP.CNode)) {
+        const renderSystem = this.world.getSystem(SRenderSystem);
 
-                const nodePos = this.selectedEntity.getMutableComponent(COMP.CTransform)!.position;
-                nodePos.x = worldPosition.x;
-                nodePos.z = worldPosition.z;
+        //you don't need to hit test if you are dragging,
+        //wich also allows non-perfect sync between the object and the cursor
+        if (!this.bDragging) {
+            this.hitTest();
+            renderSystem.enableCameraControl();
 
-                this.snapNode(this.selectedEntity);
+        }
+        else {
+            if (!this.hoveredEntity) { console.error("interact: unexpected that dragging without hovered entity"); return; }
 
-                this.syncElementModel(this.selectedEntity.getComponent(COMP.CNode)!.element);
-
-            }
-
-            //
-            if (this.selectedEntity.hasComponent(COMP.CElement)) {
-
-                const elementTransform = this.selectedEntity.getMutableComponent(COMP.CTransform)!.position;
-
-                //save the offset from original position 
-                const offsetX = worldPosition.x - elementTransform.x;
-                const offsetZ = worldPosition.z - elementTransform.z;
-
-                // update the position of the element
-                const cElement = this.selectedEntity.getComponent(COMP.CElement)!;
-                const nodeLPos = cElement.nodeL.getMutableComponent(COMP.CTransform)!.position;
-
-                nodeLPos.x += offsetX;
-                nodeLPos.z += offsetZ;
-
-
-                const nodeRPos = cElement.nodeR.getMutableComponent(COMP.CTransform)!.position;
-                nodeRPos.x += offsetX;
-                nodeRPos.z += offsetZ;
-
-
-                this.snapNode(cElement.nodeL);
-                this.snapNode(cElement.nodeR);
-                this.syncElementModel(this.selectedEntity);
-
-            }
-
+            const worldPosition = this.getIntersectionWithPlane(event);
+            this.moveEntity(worldPosition, this.hoveredEntity);
+            renderSystem.disableCameraControl();
         }
     }
 
 
 
-    //todo:xyz is kinda messy here
-    snapPosToGrid(position: THREE.Vector3): number {
+    hitTest() {
+        //this.raycaster.setFromCamera(this.pointerNDC, this.world.getSystem(SRenderSystem).top_camera!);
 
-        //grid node index: 
-        const gridIndexX = Math.round(position.x / this.gridSpacing);
-        const gridIndexY = Math.round(position.y / this.gridSpacing);
-        const gridIndexZ = Math.round(position.z / this.gridSpacing);
+        //new logic: 
+        // selective hit test objs,
+        // if already selected, prioritize the selected context and neighbors 
+        let intersects: THREE.Intersection[] = [];
+        const targetEntity = this.hoveredEntity;
+        if (targetEntity) {
 
-        position.x = gridIndexX * this.gridSpacing;
-        position.y = gridIndexY * this.gridSpacing;
-        position.z = gridIndexZ * this.gridSpacing;
+            //console.log("interact: hit logic with element");
+            const [group, nodeL, nodeR] = getElementAndNode(targetEntity);
 
-        const slotID = gridIndexX + gridIndexZ * this.gridNum;
-        //console.log("interact: slotID: " + slotID);
-        return slotID;
-    }
+            intersects = this.raycaster.intersectObjects([group.getComponent(COMP.CObject3D)!.group, nodeL.getComponent(COMP.CObject3D)!.group, nodeR.getComponent(COMP.CObject3D)!.group], true);
 
-    snapNode(thisNode: Entity): void {
-
-        const position = thisNode.getMutableComponent(COMP.CTransform)!.position;
-
-        const slotID = this.snapPosToGrid(position);
-
-        const node = thisNode.getMutableComponent(COMP.CNode)!;
-        node.slotID = slotID;
-
-    }
-
-    snapElement(thisElement: Entity): void {
-
-        if (!thisElement.hasComponent(COMP.CElement)) {
-            console.warn("not a element!.");
-            return;
         }
-        const cElement = thisElement.getComponent(COMP.CElement)!;
 
-        this.snapNode(cElement.nodeL);
-        this.snapNode(cElement.nodeR);
+        //if no hit, then check the whole scene
+        if (intersects.length == 0) {
 
-        this.syncElementModel(thisElement);
-    }
+            const scene = this.world.getSystem(SRenderSystem).scene!;
 
+            //arg2 st the test is recursive;
+            intersects = this.raycaster.intersectObjects(scene.children, true);
+        }
 
-    syncElementModel(element: Entity): void {
-        // 检查 element 是否包含必要组件
-        if (!element.hasComponent(COMP.CElement)) {
-            console.warn("not a element!.");
+        //if still no hit, a miss.
+        if (intersects.length == 0) {
+            //console.log("interact: hit no object");
+            this.deHoverEntity();
             return;
         }
 
-        const cElement = element.getComponent(COMP.CElement)!;
-        const cTransform = element.getMutableComponent(COMP.CTransform)!;
+
+        //console.log("interact: hit objects num: " + intersects.length);
+        const hitObj = intersects[0].object;
+
+        //utilize Array.find
+        const hitEntity = this.queries.interactives.results.find(e => {
+            if (!e.hasComponent(COMP.CObject3D)) {
+                return false;
+            }
+            const group = e.getComponent(COMP.CObject3D)!.group;
+            const bHit = group === hitObj || group.children.includes(hitObj);
+            return bHit;
+        });
 
 
-        const nodeL = cElement.nodeL;
-        const nodeR = cElement.nodeR;
-        const posL = nodeL.getComponent(COMP.CTransform)!.position;
-        const posR = nodeR.getComponent(COMP.CTransform)!.position;
+        if (hitEntity) {
+            //console.log("interact: hit entity id: " + hitEntity.id + " name: " + hitObj.name);
 
-        cTransform.position.x = (posL.x + posR.x) / 2;
-        //cTransform.position.y = (posL.y + posR.y) / 2;
-        cTransform.position.z = (posL.z + posR.z) / 2;
-
-        const direction = new THREE.Vector3(posR.x - posL.x, 0, posR.z - posL.z);
-        const length = direction.length();
-
-        const angleY = Math.atan2(direction.z, -direction.x);
-
-        cTransform.rotation.y = angleY;
-
-        cTransform.scale.x = length * 0.5;
-        //cTransform.scale.y = cTransform.scale.y;
-        cTransform.scale.z = cTransform.scale.z;
-    }
+            this.onHoverEntity(hitEntity);
 
 
+        } else {
+            //console.log("interact: hit but invalid object: " + hitObj.name);
 
-    onPointerUp(event: PointerEvent): void {
-        console.log("interact: pointer up");
+            this.deHoverEntity();
 
-        if (this.bDragging) {
-            console.log("interact: drop");
-
-            //click logic
-
-            this.onClick();
-            //clear the state.
-            this.bDragging = false;
-            this.selectedEntity = null;
         }
     }
 
-    //don't use document because of uncertain order;
-    onClick(): void {
-        console.log("interact: click");
+    moveEntity(movedToPos: Vector3, entity: Entity): void {
 
-        if (this.selectedEntity) {
-            this.gui.destroy();
-            this.gui = new GUI();
-            Utils.showPropertiesGUI(this.selectedEntity!, this.gui!);
+        //
+        if (entity.hasComponent(COMP.CNode)) {
+            //new: skip if the node is not movable 
+
+            const cThisNode = entity.getComponent(COMP.CNode)!;
+            if (!cThisNode.moveable) {
+                console.log("interact: node not movable");
+                return;
+            }
+
+
+            const cElement = cThisNode.element.getComponent(COMP.CElement)!;
+            const size = cElement.elementSize;
+
+            const thisNodePos = entity.getMutableComponent(COMP.CTransform)!.position;
+            const otherNodePos = cThisNode.other.getComponent(COMP.CTransform)!.position;
+
+            // new logic: set a minimum distance;  with a little offset  
+            const new_dist = movedToPos.distanceTo(otherNodePos);
+            // console.log("interact: new dist: " + new_dist);
+            if (new_dist < size + 0.05) {
+                return;
+            }
+
+            thisNodePos.x = movedToPos.x;
+            thisNodePos.z = movedToPos.z;
+
+            snapNode(entity);
+
+            ENTT.OnNodesChange(entity.getComponent(COMP.CNode)!.element);
+
         }
+        else if (entity.hasComponent(COMP.CElement)) {
+
+            const elementTransform = entity.getMutableComponent(COMP.CTransform)!.position;
+
+            //save the offset from original position 
+            const offsetX = movedToPos.x - elementTransform.x;
+            const offsetZ = movedToPos.z - elementTransform.z;
+
+            // update the position of the element
+            const cElement = entity.getComponent(COMP.CElement)!;
+            const nodePosL = cElement.nodeL.getMutableComponent(COMP.CTransform)!.position;
+
+            nodePosL.x += offsetX;
+            nodePosL.z += offsetZ;
+
+            const nodePosR = cElement.nodeR.getMutableComponent(COMP.CTransform)!.position;
+            nodePosR.x += offsetX;
+            nodePosR.z += offsetZ;
+
+            snapNode(cElement.nodeL);
+            snapNode(cElement.nodeR);
+
+            ENTT.OnNodesChange(entity);
+
+        }
+
     }
 
 
-    //todo: not mesh?
-    hightlightObject(obj: THREE.Object3D): void {
+    //don't use document click because of uncertain order;
+    onClick(entity: Entity): void {
+        if (!entity) {
+            console.error("interact: invalid entity");
+            return;
+        }
 
-        const outlinePass = this.world.getSystem(SRenderSystem).outlinePass!;
-        outlinePass.selectedObjects = [obj as THREE.Mesh];
+        //console.log("interact: click");   
+        this.gui!.destroy();
+        this.gui = new GUI({ autoPlace: true, title: 'Properties' });
 
-        console.log("interact: highlighted object");
+        ['pointerdown', 'pointermove', 'pointerup'].forEach(eventType => {
+            this.gui!.domElement.addEventListener(eventType, (event) => {
+                event.stopPropagation();
+            });
+        });
+
+        Utils.showPropertiesGUI2(entity, this.gui!, this.world);
+    }
+
+    deClick(): void {
+        this.gui!.destroy();
     }
 
 
-    deSelectObject(): void {
+    onHoverEntity(entity: Entity): void {
+        //console.log("interact: highlighted object");
 
-        const outlinePass = this.world.getSystem(SRenderSystem).outlinePass!;
-        outlinePass.selectedObjects = [];
-        console.log("interact: deselected object");
+        if (this.hoveredEntity === entity) return;
+        else {
+            //if there is a previous hovered entity, dehighlight it;
+            this.deHoverEntity();
+        }
+
+        this.hoveredEntity = entity;
+
+        const group = entity.getComponent(COMP.CObject3D)!.group;
+        group.children.forEach((child) => {
+            if (!(child instanceof THREE.Mesh)) return;
+            const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            material.emissive.set(0x00ffff);
+            material.emissiveIntensity = 1;
+        });
+
+
+    }
+
+
+    deHoverEntity(): void {
+        if (this.hoveredEntity) {
+            //console.log("interact: dehighlighted object");
+
+            const entity = this.hoveredEntity;
+
+            const group = entity.getComponent(COMP.CObject3D)!.group;
+            group.children.forEach((child) => {
+                if (!(child instanceof THREE.Mesh)) return;
+                const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+                material.emissive.set(0x000000);
+                material.emissiveIntensity = 0.0;
+            });
+        }
+
+
+        this.hoveredEntity = null;
+        //console.log("interact: deselected object");
+    }
+
+
+
+    getIntersectionWithPlane(event: PointerEvent): THREE.Vector3 {
+
+        const intersection = new THREE.Vector3();
+
+        //utilize built-in ray-plane intersection
+        this.raycaster.ray.intersectPlane(this.virtualPlane, intersection);
+
+        return intersection;
     }
 
 
 }
+
+
+export class SXRInteractSystem extends SInteractSystem {
+
+    public handPointer: OculusHandPointerModel | null = null;
+
+    init(): void {
+        //super.init(); 
+        console.log("init xr interact system");
+    }
+
+    execute(delta: number, time: number): void {
+        //super.execute(delta, time);
+        if (!this.handPointer) {
+            console.error("interact: xr no hand pointer");
+            return;
+        }
+
+        this.updateXR();
+    }
+
+    setHandPointer(handPointer: OculusHandPointerModel): void {
+        this.handPointer = handPointer;
+    }
+
+
+    updateXR(): void {
+        //console.log("interact: update xr");
+
+        const hp = this.handPointer!;
+
+        this.updateRaycasterXR();
+        this.onPointerMove(new PointerEvent('pointermove'), false);
+
+        if (hp.isPinched()) {
+            this.onPointerDown(new PointerEvent('pointerdown'));
+        }
+        else if (!hp.isPinched() && this.bDragging) {
+            this.onPointerUp(new PointerEvent('pointerup'));
+        }
+
+
+    }
+
+
+    updateRaycasterXR(): void {
+
+        this.raycaster = this.handPointer!.raycaster;
+    }
+
+
+
+}
+
+
+

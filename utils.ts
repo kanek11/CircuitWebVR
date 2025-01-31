@@ -4,8 +4,36 @@ import { Vector3, Vector2, Camera } from 'three';
 
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
+import * as COMP from "./components";
+import * as ENTT from "./entities";
 
-export function ScreenToWorld(event: MouseEvent, camera: THREE.OrthographicCamera): Vector3 {
+import { SGraphSystem } from './graphSystem';
+
+
+
+//ts expect all possible keys to be defined
+export const elementComponentMap: Record<COMP.ElementTypeName, string> = {
+    'wire': 'CWire',
+    'resistor': 'CResistance',
+    'DC voltage': 'CDCVoltage',
+    'inductor': 'CInductance',
+    'capacitor': 'CCapacitance',
+    'AC voltage': 'CACVoltage',
+} as const;
+
+
+export const elementFactoryMap: Record<COMP.ElementTypeName, () => any> = {
+    'wire': () => ENTT.createWire,
+    'resistor': () => ENTT.createResistor,
+    'DC voltage': () => ENTT.createDCVoltage,
+    'inductor': () => ENTT.createInductor,
+    'capacitor': () => ENTT.createCapacitor,
+    'AC voltage': () => ENTT.createACVoltage,
+} as const;
+
+
+
+export function PixelToWorld(event: MouseEvent, camera: THREE.OrthographicCamera): Vector3 {
     //const camera = this.world.getSystem(SRenderSystem).top_camera!;
 
     // Step 1: Convert screen coordinates to NDC
@@ -27,62 +55,319 @@ export function ScreenToWorld(event: MouseEvent, camera: THREE.OrthographicCamer
 
 
 
+
 // Function: Display entity's component properties in a GUI
 // Function to display properties in GUI
-export function showPropertiesGUI(entity: Entity, gui: GUI) {
+export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
+
+    //new: 
+    const graphSystem = world.getSystem(SGraphSystem);
+
+    let entityName = 'Entity';
+    if (entity.hasComponent(COMP.CElementMetaInfo)) {
+        entityName = entity.getComponent(COMP.CElementMetaInfo)!.name
+    }
 
 
+    //[componentName: string]: Component‹any›
     const components = entity.getComponents();
 
-    Object.entries(components).forEach(([componentName, componentInstance]) => {
-        const className = componentInstance.constructor.name;
-        //console.log('gui class:' + className);
+    const controlFolder = gui.addFolder('Control');
+    controlFolder.add({ remove: () => ENTT.removeEntity(world, entity), }, 'remove').name('remove');
 
-        //get schema, static member of the type
-        const BaseType = componentInstance.constructor as typeof Component;
-        const schema = BaseType.schema;
+
+    Object.entries(components).forEach(([componentName, componentInstance]) => {
+        //console.log("componentName: ", componentName);
+
+        // console.log("type: ", typeof (componentInstance));
+        const typeName = componentInstance.constructor.name;
+
+        //get schema, static member of the type 
+        const schema = (componentInstance.constructor as any).schema;
 
         //add folder for each component
-        const folder = gui.addFolder(className);
+        const compFolder = gui.addFolder(typeName);
 
+        //schema defines props of interest, without those inherited from Component<T>
         for (const key in schema) {
-            //type of schema
-            const typedKey = key as keyof typeof schema;
-            const fieldSchema = schema[typedKey];
+            //make sure schema matches the actual fields
+            const schemaKey = key as keyof typeof schema;
+            const compKey = key as keyof typeof componentInstance;
+            const fieldSchema = schema[schemaKey];
 
-            //if (componentInstance.hasOwnProperty(key)) { 
+            if (fieldSchema.type === Types.Ref && componentInstance[compKey] instanceof THREE.Vector3) {
 
-            // if (fieldSchema.type === Types.JSON) {
-            //     const subfolder = folder.addFolder(key);
-            //     for (const subkey in fieldSchema.default) {
-            //         subfolder.add(componentInstance[key], subkey, fieldSchema.min, fieldSchema.max).name(subkey);
-            //     }
-            // }
+                const vector = componentInstance[compKey] as THREE.Vector3;
+                const subfolder = compFolder.addFolder(key);
+                subfolder.add(vector, 'x').name('x').disable().listen();
+                subfolder.add(vector, 'y').name('y').disable().listen();
+                subfolder.add(vector, 'z').name('z').disable().listen();
 
-            if (fieldSchema.type === Types.Ref && componentInstance[key] instanceof THREE.Vector3) {
-                // Handle THREE.Vector3 type
-                const vector = componentInstance[key] as THREE.Vector3;
-                const subfolder = folder.addFolder(key);
-                subfolder.add(vector, 'x', fieldSchema.min, fieldSchema.max).name('x');
-                subfolder.add(vector, 'y', fieldSchema.min, fieldSchema.max).name('y');
-                subfolder.add(vector, 'z', fieldSchema.min, fieldSchema.max).name('z');
+                //collapse the folder at start
+                subfolder.close();
             }
+
+            else if (fieldSchema.type === Types.Ref && componentInstance[compKey] instanceof THREE.Group) {
+
+                const group = componentInstance[compKey] as THREE.Group;
+                compFolder.add({ message: group.name }, 'message').name(key).disable();
+            }
+
+            else if (fieldSchema.type === Types.String) {
+                compFolder.add(componentInstance, key).name(key).listen();
+            }
+
             else if (fieldSchema.type === Types.Boolean) {
-                folder.add(componentInstance, key).name(key);
+                compFolder.add(componentInstance, key).name(key).listen();
             }
             else if (fieldSchema.type === Types.Number) {
-                folder.add(componentInstance, key, fieldSchema.min, fieldSchema.max).name(key);
+
+                const numberSchema = fieldSchema as COMP.ComponentSchemaProp_Number;
+                const controller = compFolder.add(componentInstance, key, numberSchema.min, numberSchema.max).name(key).listen();
+                if (numberSchema.readonly) {
+                    controller.disable();
+                }
+                if (numberSchema.step) {
+                    controller.step(numberSchema.step);
+                }
+
+                if (numberSchema.monitorable) {
+                    const lineName = entityName + '.' + key;
+                    const hasKey = graphSystem.hasMonitored(lineName);
+                    controlFolder.add({ monitor: hasKey }, 'monitor').name(key).onChange((value) => {
+                        if (value) {
+                            graphSystem.addLine(lineName, () => {
+                                return componentInstance[compKey] as unknown as number;
+                            });
+                        }
+                        else {
+                            graphSystem.removeLine(lineName);
+                        }
+                    });
+                }
             }
             else {
                 //add a text says it's not supported
-                folder.add({ message: 'type not handled' }, 'message').name(key);
+                compFolder.add({ message: 'type not handled' }, 'message').name(key).disable();
             }
 
-        };
-    });
+
+        }; //iterate over schema
+    }); //iterate over components
 
 }
 
 
+
+
+// function saveWorld(world: World) {
+//     const worldData = world.serialize();
+//     saveToFile(worldData);
+// }
+
+function saveToFile(data: any, filename: string = "data.json") {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+
+
+export function saveObject3D(scene: THREE.Object3D) {
+    const sceneData = scene.toJSON();
+    saveToFile(sceneData, "scene.json");
+    //console.log("Scene saved, children num: ", scene.children.length);
+    //console.log(JSON.stringify(scene.toJSON(), null, 2));
+}
+
+
+
+
+function readFileAsParsedJson(file: File): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const result = event.target?.result as string;
+                const data = JSON.parse(result);
+                resolve(data);
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+    });
+}
+
+export async function loadObject3D(fileInput: HTMLInputElement): Promise<THREE.Group | undefined> {
+    if (fileInput.files && fileInput.files.length > 0) {
+        try {
+            const file = fileInput.files[0];
+            const sceneData = await readFileAsParsedJson(file);
+            const loader = new THREE.ObjectLoader();
+            const loadedScene = loader.parse(sceneData) as THREE.Group;
+
+            console.log("Scene loaded successfully");
+            //console.log(": ", loadedScene);
+
+            return loadedScene;
+
+        } catch (error) {
+            console.error("Fail loading scene:", error);
+        }
+    } else {
+        console.warn("No file selected");
+    }
+}
+
+
+
+
+export function saveWorld(entts: Array<Entity>): any {
+    const entitiesData: any[] = [];
+
+
+
+    entts.forEach((entity) => {
+        const entityId = entity.id;
+        const componentsData: any[] = [];
+
+        const components = entity.getComponents();
+
+        Object.entries(components).forEach(([componentId, componentInstance]) => {
+            const compName = componentInstance.constructor.name;
+
+            const schema = (componentInstance.constructor as any).schema;
+            if (!schema) return;
+
+            // 将组件字段整理成可序列化的对象
+            const data: Record<string, any> = {};
+            for (const key of Object.keys(schema)) {
+
+                const value = (componentInstance as any)[key];
+                if (schema[key].type === Types.Ref && value instanceof THREE.Vector3) {
+                    data[key] = value;
+                }
+                else if (schema[key].type === Types.Number) {
+                    data[key] = value;
+                }
+                else if (schema[key].type === Types.String) {
+                    data[key] = value;
+                }
+                else if (schema[key].type === Types.Boolean) {
+                    data[key] = value;
+                }
+            }
+
+            componentsData.push({
+                type: compName,
+                data,
+            });
+
+        });
+
+        entitiesData.push({
+            id: entityId,
+            elementType: "entity",
+            components: componentsData
+        });
+
+
+    });
+
+
+    saveToFile({ entities: entitiesData }, "world.json");
+    return { entities: entitiesData };
+
+}
+
+export async function loadWorldFromFileInput(fileInput: HTMLInputElement, world: World): Promise<void> {
+    if (fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const data = await readFileAsParsedJson(file);
+        await processWorldFile(data, world);
+
+    } else {
+        console.error("No file selected.");
+    }
+}
+
+
+//untested
+export async function loadWorldFromFilePath(filePath: string, world: World): Promise<void> {
+
+    const response = await fetch(filePath);
+    const data = await response.json();
+
+    await processWorldFile(data, world);
+
+}
+
+async function processWorldFile(data: any, world: World): Promise<void> {
+    try {
+
+        console.log("entitiesData: ", data);
+
+        if (!data || !data.entities) {
+            console.error('Invalid world data');
+            return;
+        }
+
+        data.entities.forEach((entityData: any) => {
+            // const entity = world.createEntity();
+            const components = entityData.components;
+
+            let position: Vector3;
+            let rotation: Vector3;
+            let length: number = 0.2;
+            let params: any;
+
+            if (components.some((comp: any) => comp.type === 'CTransform')) {
+                const cTransform = components.find((comp: any) => comp.type === 'CTransform');
+                position = new Vector3(cTransform.data.position.x, cTransform.data.position.y, cTransform.data.position.z);
+                rotation = new Vector3(cTransform.data.rotation.x, cTransform.data.rotation.y, cTransform.data.rotation.z);
+            }
+            else {
+                position = new Vector3(0, 0, 0);
+                rotation = new Vector3(0, 0, 0);
+                console.warn("load entt: No transform component found");
+            }
+
+            if (components.some((comp: any) => comp.type === 'CElementMetaInfo')) {
+                const cMeta = components.find((comp: any) => comp.type === 'CElementMetaInfo');
+                const elementType = cMeta.data.elementType as COMP.ElementTypeName;
+
+                if (components.some((comp: any) => comp.type === 'CElement')) {
+                    const cElement = components.find((comp: any) => comp.type === 'CElement');
+                    length = cElement.data.length;
+                }
+
+                const factory = elementFactoryMap[elementType]();
+                // console.log("element type: ", elementType);
+                // console.log("factory: ", factory);
+                const compName = elementComponentMap[elementType];
+
+                if (components.some((comp: any) => comp.type === compName)) {
+                    const cElementComp = components.find((comp: any) => comp.type === compName);
+                    params = cElementComp.data;
+                }
+                const entity = ENTT.spawnEntity2(world, factory, position, rotation, length, params);
+
+            }
+            else {
+                console.warn("load entt: No meta component found");
+            }
+        });
+    } catch (error) {
+        console.error("Fail loading world:", error);
+    }
+}
 
 

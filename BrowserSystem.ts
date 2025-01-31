@@ -1,82 +1,77 @@
-import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
+
 import { World, Component, Entity, System, Types } from 'ecsy';
+import * as THREE from 'three';
+
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import * as COMP from "./components";
 import * as ENTT from "./entities";
 
-import { Vector2, Vector3 } from 'three';
 import { SRenderSystem } from './renderSystem';
 import { SInteractSystem } from './interactSystem';
 
 import * as Utils from './utils';
+import { Globals } from "./globals";
 
 
-
-
-
-//alias of factory
-export type EntityFactory = (world: World) => Entity;
-
-export class PrototypeManager {
-    public prototypes: Map<string, EntityFactory> = new Map();
-
-    public addPrototype = (name: string, factory: EntityFactory) => {
-        this.prototypes.set(name, factory);
-    }
-
-    public getPrototype = (name: string): EntityFactory | undefined => {
-        return this.prototypes.get(name);
-    }
-}
-
+/**
+ * Browser System will be decoupled from details of interaction methods.
+ */
 
 export class SBrowserSystem extends System {
-    public gui: GUI = new GUI();
-
-    private prototypeManager: PrototypeManager = new PrototypeManager();
+    public gui: GUI = new GUI({ title: 'Browser' });
 
     private bDragging: boolean = false;
-    private currentFactory: EntityFactory | null = null;
-
+    private currentFactory: ENTT.EntityFactory2<any> | null = null;
 
     static queries = {
-        prototypes: {
-            components: [COMP.CPrototype],
-            listen: { added: true, removed: true }
-        },
     };
 
     init(): void {
         console.log("init browser system");
 
-        //move the gui to the top left  
-        this.gui.domElement.style.left = '0px';
+        document.addEventListener('pointermove', (event) => this.onPointermove(event));
+        document.addEventListener('pointerup', (event) => this.onPointerUp(event));
 
-        document.addEventListener('pointermove', (event) => this.onDrag(event));
-        document.addEventListener('pointerup', (event) => this.onDrop(event));
-
-
-        this.registerPrototype('wire', ENTT.createElement);
-        this.registerPrototype('resistor', ENTT.createResistor);
-        this.registerPrototype('voltage', ENTT.createDCVoltage);
-
-        this.registerPrototype('inductor', ENTT.createInductor);
-        this.registerPrototype('capacitor', ENTT.createCapacitor);
+        for (const key in Utils.elementFactoryMap) {
+            this.registerPrototype(key, Utils.elementFactoryMap[key as keyof typeof Utils.elementFactoryMap]());
+        }
     }
 
-
-
     //manually add prototypes here for now， todo: more cohesive;
-    registerPrototype(_name: string, factory: EntityFactory): void {
+    registerPrototype(_name: string, _factory: ENTT.EntityFactory2<any>): void {
 
-        // entity.addComponent(COMP.CPrototype, { name: _name });
-
+        //the event can capture the required context
         const controller = this.gui.add({ asset: _name }, 'asset').name(_name);
         controller.domElement.addEventListener('pointerdown', (event) => {
-            this.currentFactory = factory;
+            this.currentFactory = _factory;
             this.triggerDrag(event);
         });
-        this.prototypeManager.addPrototype(_name, factory);
+
+        // const img = document.createElement('img');
+        // img.src = './lighting.jpg';
+        // img.style.width = '100%'; // 图片宽度适应容器宽度，不然会保持原分辨率
+        // img.style.height = 'auto'; //  
+        // img.addEventListener('pointerdown', (event) => {
+        //     console.log("img pointer down");
+        //     //event.stopPropagation();
+        //     event.preventDefault();  //原img element有默认行为，会导致pointerup事件不触发
+        // });
+
+
+        // controller.domElement.innerHTML = '';
+        // controller.domElement.style.flexDirection = 'column';
+
+        // const text = document.createElement('div');
+        // text.textContent = 'Lighting Preview'; // 替换为你的文字
+        // text.style.textAlign = 'center';
+        // text.style.marginTop = '10px';
+        // text.style.fontSize = '14px';
+        // controller.domElement.appendChild(text);
+
+        // controller.domElement.appendChild(img);
+
+
     }
 
 
@@ -84,36 +79,41 @@ export class SBrowserSystem extends System {
     }
 
     triggerDrag(event: PointerEvent): void {
+
         console.log("browser: trigger drag");
-        //console.log("select: " + name);
         this.bDragging = true;
     }
 
-    onDrag(event: PointerEvent): void {
+    onPointermove(event: PointerEvent): void {
         if (!this.bDragging) return;
-        //console.log("on drag " + event.clientX + " " + event.clientY);
+
+        //todo: show a preview of the object
     }
 
-    onDrop(event: PointerEvent): void {
+    onPointerUp(event: PointerEvent): void {
         if (!this.bDragging) return;
         console.log("browser: drop");
 
+        //new logic: won't drop if the mouse is still in the gui
+        if (this.gui.domElement.contains(event.target as Node)) {
+            console.log("mouse still in gui, cancel drop");
+            return;
+        }
+
         //spawn a new entity
-
         //const worldPosition = this.mouseToWorldPosition(event);   
-        const worldPosition = Utils.ScreenToWorld(event, this.world.getSystem(SRenderSystem).top_camera!);
+        //const worldPosition = Utils.PixelToWorld(event, this.world.getSystem(SRenderSystem).top_camera!);
 
-        const instance = ENTT.spawnEntity(this.world, this.currentFactory!, worldPosition);
-        //todo: more debug info?
-
-
-        //new:
         const interactSystem = this.world.getSystem(SInteractSystem);
-        interactSystem.snapElement(instance);
+        const worldPosition = interactSystem.getIntersectionWithPlane(event);
+
+        const instance = ENTT.spawnEntity2(this.world, this.currentFactory!, worldPosition);
+        //todo: more debug info?  
 
         //clear the state.
         this.bDragging = false;
         this.currentFactory = null;
+
     }
 
 

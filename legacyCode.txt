@@ -1,0 +1,521 @@
+  
+            // const worldPosition = Utils.PixelToWorld(event, this.world.getSystem(SRenderSystem).top_camera!);
+
+        // const outlinePass = this.world.getSystem(SRenderSystem).outlinePass!; 
+        // outlinePass.selectedObjects = [obj as THREE.Mesh];
+
+        //release:
+        // const [element, nodeL, nodeR] = getElementAndNode(entity);
+        // outlinePass.selectedObjects = [element.getComponent(COMP.CObject3D)!.group, nodeL.getComponent(COMP.CObject3D)!.group, nodeR.getComponent(COMP.CObject3D)!.group];
+
+     
+
+
+                // const outlinePass = this.world.getSystem(SRenderSystem).outlinePass!;
+        // outlinePass.selectedObjects = [];
+
+
+        //new: ignore if the event target is the gui
+        if (event.target instanceof HTMLElement) {
+            if (event.target.closest(".lil-gui")) {
+                return;
+            }
+        }
+
+
+        // //new: two modes
+        // if (this.world.getSystem(SRenderSystem).getViewMode() === "Top") {
+        //     //console.log("interact: top view");
+        //     this.raycaster.setFromCamera(this.pointerNDC, this.world.getSystem(SRenderSystem).top_camera!);
+        // }
+        // else {
+        //     //console.log("interact: 3D view");
+        //     this.raycaster.setFromCamera(this.pointerNDC, this.world.getSystem(SRenderSystem).main_camera!);
+        // }
+
+
+
+      this.transformControl = new TransformControls(this.main_camera, this.renderer.domElement);
+        //output usable events of TransformControls 
+
+        //this.scene.add(this.transformControl.getHelper());
+
+    attachControl(obj: THREE.Object3D) {
+        if (this.transformControl === null) return;
+        if (obj !== this.transformControl.object) {
+
+            this.transformControl.attach(obj);
+        }
+    }
+
+    detachControl() {
+        if (this.transformControl === null) return;
+        this.transformControl.detach();
+    }
+
+
+
+
+
+ const initNode = (node: Entity, offset: number) => {
+
+            if (node.hasComponent(COMP.CTransform)) {
+                const pos = node.getMutableComponent(COMP.CTransform)!.position;
+                pos.x = _position.x + offset;
+                pos.y = _position.y;
+                pos.z = _position.z;
+            }
+        }
+
+        const nodeL = entt.getComponent(COMP.CElement)!.nodeL;
+        const nodeR = entt.getComponent(COMP.CElement)!.nodeR;
+
+        initNode(nodeL, Dir.LEFT * 0.1);
+        initNode(nodeR, Dir.RIGHT * 0.1);
+        
+        
+        
+        
+        
+                    if (components.some((comp: any) => comp.type === 'CResistance')) {
+                    const cResistance = components.find((comp: any) => comp.type === 'CResistance');
+                    //params = { resistance: cResistance.data.resistance } as ENTT.IResistorParams;
+
+                    const entity = ENTT.spawnEntity2(world, ENTT.createResistor, position!, rotation!, cResistance.data);
+                }
+                else if (components.some((comp: any) => comp.type === 'CDCVoltage')) {
+                    const cVoltage = components.find((comp: any) => comp.type === 'CDCVoltage');
+                    //params = { voltage: cVoltage.data.voltage } as ENTT.IDCVoltageParams;
+
+                    const entity = ENTT.spawnEntity2(world, ENTT.createDCVoltage, position!, rotation!, cVoltage.data);
+                }
+                
+                
+                
+                
+                if (compName == "CTransform") {
+                        const data = componentData.data;
+                        entity.addComponent(COMP.CTransform, {
+                            position: new THREE.Vector3(data.position.x, data.position.y, data.position.z),
+                            rotation: new THREE.Vector3(data.rotation.x, data.rotation.y, data.rotation.z),
+                            scale: new THREE.Vector3(data.scale.x, data.scale.y, data.scale.z),
+                        });
+                    }
+
+
+ entityData.components.forEach((componentData: any) => {
+                    const compName = componentData.type;
+
+
+                });
+
+//alias of factory
+export type EntityFactory = (world: World) => Entity;
+
+export const spawnEntity = (world: World, _factory: EntityFactory, _position: Vector3 = new Vector3()): Entity => {
+
+    const entt = _factory(world);
+
+    if (entt.hasComponent(COMP.CTransform)) { entt.getMutableComponent(COMP.CTransform)!.position = _position; }
+
+    if (entt.hasComponent(COMP.CElement)) {
+
+        const initNode = (node: Entity, offset: number) => {
+
+            if (node.hasComponent(COMP.CTransform)) {
+                const pos = node.getMutableComponent(COMP.CTransform)!.position;
+                pos.x = _position.x + offset;
+                pos.y = _position.y;
+                pos.z = _position.z;
+            }
+        }
+
+        const nodeL = entt.getComponent(COMP.CElement)!.nodeL;
+        const nodeR = entt.getComponent(COMP.CElement)!.nodeR;
+
+        initNode(nodeL, Dir.LEFT * 0.1);
+        initNode(nodeR, Dir.RIGHT * 0.1);
+    }
+
+    //new logic: snap the element to the grid
+    const interactSystem = world.getSystem(SInteractSystem);
+    if (interactSystem) { interactSystem.snapElement(entt); }
+    else {
+        console.warn("no interact system found");
+    }
+
+    return entt;
+}
+
+
+
+
+// Function: Display entity's component properties in a GUI
+// Function to display properties in GUI
+export function showPropertiesGUI(entity: Entity, gui: GUI) {
+
+    const components = entity.getComponents();
+
+    Object.entries(components).forEach(([componentName, componentInstance]) => {
+        const className = componentInstance.constructor.name;
+
+        console.log("component : ", className);
+        const keys = Object.keys(componentInstance);
+        console.log("keys: ", keys);
+
+        //get schema, static member of the type
+        const BaseType = componentInstance.constructor as typeof Component<any>;
+        const schema = BaseType.schema;
+
+        //add folder for each component
+        const folder = gui.addFolder(className);
+
+        for (const key in schema) {
+            //make sure schema matches the actual fields
+            const schemaKey = key as keyof typeof schema;
+            const compKey = key as keyof typeof componentInstance;
+            const fieldSchema = schema[schemaKey];
+
+            if (fieldSchema.type === Types.Ref &&
+                componentInstance.hasOwnProperty(key) &&
+                componentInstance[compKey] instanceof THREE.Vector3) {
+                // Handle THREE.Vector3 type
+                const vector = componentInstance[compKey] as THREE.Vector3;
+                const subfolder = folder.addFolder(key);
+                subfolder.add(vector, 'x').name('x').disable().listen();
+                subfolder.add(vector, 'y').name('y').disable().listen();
+                subfolder.add(vector, 'z').name('z').disable().listen();
+
+                //collapse the folder at start
+                subfolder.close();
+            }
+            else if (fieldSchema.type === Types.Boolean) {
+                folder.add(componentInstance, key).name(key).listen();
+            }
+            else if (fieldSchema.type === Types.Number) {
+                if (fieldSchema.hasOwnProperty('min') && fieldSchema.hasOwnProperty('max'))
+                    folder.add(componentInstance, key, fieldSchema.min, fieldSchema.max).name(key).listen();
+                else
+                    folder.add(componentInstance, key).name(key).listen();
+            }
+            else {
+                //add a text says it's not supported
+                folder.add({ message: 'type not handled' }, 'message').name(key).disable();
+            }
+
+        }; //iterate over schema
+    }); //iterate over components
+
+}
+
+
+
+
+    // getEquivalentVk(speed: number): number {
+    //     return this.v_scale * speed;
+    // }
+
+    // getPointAtHeight(height: number): THREE.Vector3 {
+    //     const t = height / this.height;
+    //     return this.getPoint(t);
+    // }
+
+
+    // getPointByDiff(_t: number, arcLength: number): { point: THREE.Vector3, t: number } {
+    //     const t = _t + arcLength / this.totalLength;
+    //     return { point: this.getPoint(t), t: t };
+    // }
+
+    // incrementPointAtHeight(height: number, increment: number): THREE.Vector3 {
+    //     const _t = height / this.height;
+    //     const t = _t + increment / this.totalLength;
+    //     return this.getPoint(t);
+    // }
+    
+    //list all components here
+export interface ComponentTypeMap {
+    CTransform: CTransform,
+    CObject3D: CObject3D,
+    CWire: CWire,
+    CElement: CElement,
+    CNode: CNode,
+    CResistance: CResistance,
+    CDCVoltage: CDCVoltage,
+    CACVoltage: CACVoltage,
+    CInductance: CInductance,
+    CCapacitance: CCapacitance,
+    CLabel3D: CLabel3D,
+    CInteractable: CInteractable,
+    CRenderable: CRenderable,
+
+}
+
+export function castComponent<T extends keyof ComponentTypeMap>(
+    name: T,
+    comp: Component<any>
+): ComponentTypeMap[T] {
+    if (comp.constructor.name !== name) {
+        throw new Error(`Component ${name} not found`);
+    }
+    return comp as ComponentTypeMap[T];
+}
+
+
+
+        const typedInstance = COMP.castComponent(typeName as keyof COMP.ComponentTypeMap, componentInstance);
+        const typedkeys = Object.keys(typedInstance);
+        console.log("keys: ", typedkeys);
+
+        //console.log("component : ", typeName);
+        const keys = Object.keys(componentInstance) as Array<keyof typeof componentInstance>;
+        //console.log("keys: ", keys); 
+        for (const key of keys) {
+            console.log(componentInstance[key]);  // 现在通过了，TypeScript 认为 key 是合法的 
+        }
+
+
+
+
+#<script type="module" src="/test.js"></script>
+
+
+
+interface ILineState {
+    lastY: number;
+    strokeStyle: string;
+    getValue: () => number;
+}
+
+
+
+export class Graph {
+
+    private canvas: HTMLCanvasElement;
+    private ctx: CanvasRenderingContext2D;
+    private width;
+    private height;
+
+    private oX = 0;
+    private oY;
+
+    private xScale = 5; //increment x pixel per delta time
+    private yRange = 5; //range of y
+    private yScale;
+
+    private lines: Map<string, ILineState> = new Map();
+    private lastX = 0;
+    private currentX = 0;
+
+    private scr_x = 0;
+    private scr_lastX = 0;
+
+
+
+    constructor() {
+        this.canvas = document.createElement("canvas");
+        const options = { willReadFrequently: true };
+        this.ctx = this.canvas.getContext('2d', options) as CanvasRenderingContext2D;
+        //, { willReadFrequently: true }
+        this.ctx.lineWidth = 2;
+        // this.ctx.globalCompositeOperation = "source-over"; // 覆盖模式
+        // this.ctx.globalAlpha = 1.0; // 不使用透明
+        //this.canvas.width = this.width;
+
+
+        //for post-scale of the canvas
+        // this.canvas.style.width = '50%';
+        // this.canvas.style.height = '25%';
+
+        this.width = window.innerWidth * 0.5;
+        this.height = window.innerHeight * 0.25;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+
+        this.oY = this.height / 2;
+        this.yScale = this.height / 2 * 1 / this.yRange;
+
+        console.log("graph: width: ", this.width, "height: ", this.height);
+
+        this.canvas.style.backgroundColor = "black";
+        this.canvas.style.position = "absolute";
+        this.canvas.style.top = "75%";  //offset from the 70% top
+        this.canvas.style.left = "0px";
+        this.canvas.style.zIndex = "2";
+        document.body.appendChild(this.canvas);
+
+
+        const ctx = this.canvas.getContext("2d");
+        if (!ctx) {
+            throw new Error("Canvas context is not available");
+        }
+    }
+
+
+    // Function to draw the curve
+    drawAxies(): void {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); // Clear canvas
+        ctx.fillStyle = "black"; // 设置背景为黑色
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); // 填充为黑色
+
+        // Draw axes
+        ctx.strokeStyle = "#aaa";
+
+        // 画 X 轴
+        ctx.beginPath();
+        ctx.moveTo(this.oX, this.oY);
+        ctx.lineTo(this.width, this.oY);
+        ctx.closePath();
+        ctx.stroke();
+
+        // 画 Y 轴
+        ctx.beginPath();
+        ctx.moveTo(this.oX, this.height);
+        ctx.lineTo(this.oX, 0);
+        ctx.stroke();
+
+        //draw Y axis every 100 pixels
+        for (let i = 0; i < this.width; i += 100) {
+            this.drawYAxis(ctx, i - 1);  //somehow a bit offset
+        }
+
+        // if (this.scr_x % 100 < dx) {
+        //     this.drawYAxis(ctx, this.scr_x - this.scr_x % 100 - this.oX - 1);
+        //     console.log("draw y axis at: ", this.scr_x - this.scr_x % 100);
+        // }
+
+    }
+
+    drawLine(line: ILineState, y: number): void {
+        const ctx = this.ctx;
+        line.lastY = y;
+
+        const scr_y = this.translateY(y);
+        const scr_lastY = this.translateY(line.lastY);
+
+        //range check:
+        if (scr_y < 0 || scr_y > this.height) {
+            console.error("graph: out of range y: ", y);
+            return;
+        }
+
+        ctx.strokeStyle = line.strokeStyle;
+        ctx.beginPath();
+        ctx.moveTo(this.scr_lastX - this.oX, scr_lastY);
+        ctx.lineTo(this.scr_x - this.oX, scr_y);
+        ctx.closePath();
+        ctx.stroke();
+
+        // console.log("draw line before: ", this.scr_lastX - this.oX, scr_lastY);
+        // console.log("draw line now: ", this.scr_x - this.oX, scr_y); 
+
+    }
+
+
+    //move the timeline
+    beginDraw(time: number) {
+        const ctx = this.ctx;
+
+        this.currentX = time;
+
+        //console.log("newX: ", newX);
+        this.scr_x = this.translateX(this.currentX);
+        this.scr_lastX = this.translateX(this.lastX);
+
+        const dx = this.scr_x - this.scr_lastX;
+
+        if (this.scr_x - this.oX > this.width) {
+            this.shiftCanvas(ctx, dx);
+            this.shiftXAxis(ctx, dx);
+
+            //translate the origin 
+            this.oX += dx;
+            //new: 
+            //render a Y axis every 100 pixels,   
+            //if there's this pixel between the last x and the current x, draw the y axis at x- remainder of 100
+            if (this.scr_x % 100 < dx) {
+                this.drawYAxis(ctx, this.scr_x - this.scr_x % 100 - this.oX - 1);
+                //console.log("draw y axis at: ", this.scr_x - this.scr_x % 100);
+            }
+        }
+
+        //range check:
+        if (this.scr_x - this.oX < 0 || this.scr_x - this.oX > this.width) {
+            console.error("graph: out of range x:", this.scr_x - this.oX);
+            return;
+        }
+
+
+
+
+    }
+
+    //save the state
+    endDraw(time: number) {
+
+        //this.lastX = this.currentX;
+        this.lastX = time;
+    }
+
+
+    translateY(y: number): number {
+        return y * this.yScale + this.oY;
+    }
+
+    translateX(x: number): number {
+        return x / 0.016;
+    }
+
+
+    shiftXAxis(ctx: CanvasRenderingContext2D, dx: number): void {
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#aaa";
+        ctx.beginPath();
+        ctx.moveTo(this.width - dx, this.oY);
+        ctx.lineTo(this.width, this.oY);
+        ctx.closePath();
+        ctx.stroke();
+
+    }
+
+    drawYAxis(ctx: CanvasRenderingContext2D, x: number): void {
+        //a semi-transparent line
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(170, 170, 170, 0.5)";
+        ctx.beginPath();
+        ctx.moveTo(x, this.height);
+        ctx.lineTo(x, 0);
+        ctx.stroke();
+    }
+
+
+
+    shiftCanvas(ctx: CanvasRenderingContext2D, px: number): void {
+        const imageData = ctx.getImageData(px, 0, this.width - px, this.height);
+        ctx.putImageData(imageData, 0, 0);
+        ctx.clearRect(this.width - px, 0, px, this.height);
+    }
+
+}
+
+
+// private data: number[] = []; // Store current values over time
+// private maxDataPoints = 200; // Limit number of points shown
+// private updateInterval = 100; // Data update interval in ms
+// private maxCurrent = 50; // Assume the max current for scaling 
+// private time = 0; // Time counter
+// Function to simulate new data (replace this with real data source)
+// generateData(): number {
+//     return Math.sin(this.time / 20) * 30 + 20; // Simulated sinusoidal current
+// }
+
+// // Function to update data
+// updateData(data: number): void {
+//     if (this.data.length >= this.maxDataPoints) {
+//         this.data.shift(); // Remove oldest data point
+//     }
+//     //this.data.push(this.generateCurrent());
+//     this.data.push(data * 30 + 20);
+//     this.time++;
+// }
+
