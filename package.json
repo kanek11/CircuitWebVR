@@ -17,6 +17,12 @@
  
     "scripts": {
       "start": "vite preview --port 3000"
-    }
+    },
+
+   
+      "engines": {
+        "node": ">=18"
+      }
+     
   
 }
