@@ -11,7 +11,7 @@ import { Globals } from "./globals";
 
 //debug log:
 // do not misuse global id and local id; which is used for matrix indexing;
-
+// keep the DC previous state and component state separate; as charge for DC should not be driven by AC;
 
 
 
@@ -227,7 +227,7 @@ class Subsystem {
                 const lEdgeID = this.gEdgeIDs.indexOf(gEdgeId);
                 this.prevEdgeCharge.set([lEdgeID, 0], cCapacitance.charge);
 
-                //console.log("subsystem init: global id " + gEdgeId + " charge: " + cCapacitance.charge);
+                //console.log("subsystem init: id " + gEdgeId + " charge: " + cCapacitance.charge);
             }
 
             if (entity.hasComponent(COMP.CInductance)) {
@@ -368,7 +368,7 @@ class Subsystem {
                 voltSrc += this.edgeVoltSrc.get([lEdgeID, 0]);
                 this.edgeVoltSrc.set([lEdgeID, 0], voltSrc);
 
-                //console.log("subsystem update: id " + gEdgeID + " charge: " + prevCharge + " volt: " + voltSrc); 
+                //console.log("subsystem update: id " + gEdgeID + " charge: " + prevCharge + " volt: " + voltSrc);
             }
 
 
@@ -427,7 +427,8 @@ class Subsystem {
             if (entity.hasComponent(COMP.CCapacitance)) {
                 const cCapacitance = entity.getComponent(COMP.CCapacitance)!;
                 //Q = C * V
-                this.prevEdgeCharge.set([index, 0], cCapacitance.capacitance * this.DCResult.edgeVolt.get([index, 0]));
+                const V = this.DCResult.edgeVolt.get([index, 0]);
+                this.prevEdgeCharge.set([index, 0], cCapacitance.capacitance * V);
             }
         });
     }
@@ -734,9 +735,9 @@ export class SSimulateSystem extends System {
     public running: boolean = true;
 
     static queries = {
-        nodes: { components: [COMP.CNode], listen: { added: true, removed: true, changed: [COMP.CNode] } },
+        nodes: { components: [COMP.CNode, COMP.CTransform], listen: { added: true, removed: true, changed: [COMP.CTransform] } },
 
-        elements: { components: [COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CElement] } },
+        elements: { components: [COMP.CElement, COMP.CTransform], listen: { added: true, removed: true, changed: [COMP.CTransform] } },
 
         resistors: { components: [COMP.CResistance], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
         inductors: { components: [COMP.CInductance], listen: { added: true, removed: true, changed: [COMP.CInductance] } },
@@ -766,6 +767,9 @@ export class SSimulateSystem extends System {
         return changed;
     }
 
+    getAllElements(): Array<Entity> {
+        return this.queries.elements.results;
+    }
 
     isACSrcChanged(): boolean {
 
@@ -787,7 +791,8 @@ export class SSimulateSystem extends System {
             //validate the system
             const elementNum = this.queries.elements.results.length;
             const nodeNum = this.queries.nodes.results.length;
-            // console.warn("simulate at:" + time, "topo changed: rebuild subsystems");
+
+            //console.warn("simulate at:" + time, "topo changed: rebuild subsystems");
             // console.log("total element num: " + elementNum + " total node num: " + nodeNum);
 
             this.systemManager.subsystems.forEach(subsystem => {
@@ -801,6 +806,7 @@ export class SSimulateSystem extends System {
 
                 subsystem.init();
                 subsystem.executeAC();
+
             });
         }
 

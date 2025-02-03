@@ -8,7 +8,7 @@ import * as THREE from "three";
 
 export type RenderMode = 'arrow' | 'particles';
 export const Globals = {
-    debugMode: true,
+    debugMode: false,
 
     timeScale: 1.0,
 
@@ -23,8 +23,6 @@ export const Globals = {
 
     renderMode: 'arrow' as RenderMode,
 
-    axisRenderOrder: 1000,
-    gridRenderOrder: 995,
 
     //dark:  
     baseColor: new THREE.Color(0x303030),
@@ -44,7 +42,7 @@ export const Globals = {
     labelRenderOrder: 999,
 
     nodeSize: 0.025,
-    nodeRenderOrder: 990,
+    nodeRenderOrder: 998,
 
     wireRadius: 0.007,
     wireLength: 0.05,
@@ -60,5 +58,8 @@ export const Globals = {
 
     tubeRadius: 0.005,
 
+
+    capacitorFieldRange: 2.0,
+    inductorFieldRange: 1.0,
 
 };

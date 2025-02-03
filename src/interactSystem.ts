@@ -3,11 +3,11 @@ import * as THREE from "three";
 import { Vector3 } from "three";
 import { World, Entity, System } from "ecsy";
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
-
+import { HTMLMesh } from 'three/examples/jsm/interactive/HTMLMesh.js';
 import * as COMP from "./components";
 import * as ENTT from "./entities";
 import { SRenderSystem } from "./renderSystem";
-import { SSimulateSystem } from "./simulateSystem";
+import { SBrowserSystem } from "./browserSystem";
 
 import { Globals } from "./globals";
 import * as Utils from "./utils";
@@ -21,25 +21,7 @@ import * as Utils from "./utils";
  */
 
 import { OculusHandPointerModel } from 'three/examples/jsm/webxr/OculusHandPointerModel.js';
-import { on } from "events";
-import { i } from "mathjs";
 
-
-function getElementAndNode(entity: Entity): [Entity, Entity, Entity] {
-    if (entity.hasComponent(COMP.CElement)) {
-        const cElement = entity.getComponent(COMP.CElement)!;
-        return [entity, cElement.nodeL, cElement.nodeR];
-
-    }
-    if (entity.hasComponent(COMP.CNode)) {
-        const element = entity.getComponent(COMP.CNode)!.element;
-        const cElement = element.getComponent(COMP.CElement)!;
-        return [element, cElement.nodeL, cElement.nodeR];
-    }
-    else
-        throw new Error("get invalid entity");
-
-}
 
 
 // const grid = new THREE.LineSegments(
@@ -122,7 +104,8 @@ export function snapElement(thisElement: Entity): void {
 
 
 export class SInteractSystem extends System {
-    public gui: GUI = new GUI({ autoPlace: true, title: 'Properties' });
+    public gui: GUI = new GUI({ title: 'Properties' });
+    public dynamicFolder: GUI | null = null;
 
     public raycaster: THREE.Raycaster = new THREE.Raycaster();
     private pointerNDC: THREE.Vector2 = new THREE.Vector2();
@@ -131,8 +114,13 @@ export class SInteractSystem extends System {
     public hoveredEntity: Entity | null = null;
     public rayDistance: number = 0;
 
-    private renderSystemRef: SRenderSystem | null = null;
+    public renderSystemRef: SRenderSystem | null = null;
     public basePlane: THREE.Plane | null = null;
+
+    public dirtyFolder: boolean = false;
+
+    public bMovingTopCamera: boolean = false;
+    public lastMousePos: THREE.Vector2 = new THREE.Vector2();
 
     // 
     static queries = {
@@ -145,13 +133,17 @@ export class SInteractSystem extends System {
     init(): void {
         console.log("init interact system");
 
+        //this.dynamicFolder = this.gui.addFolder('No object');
+
         this.renderSystemRef = this.world.getSystem(SRenderSystem)!;
         this.basePlane = this.renderSystemRef.basePlane;
 
         if (this.renderSystemRef.viewMode != 'VR') {
-            document.addEventListener('pointermove', (event) => this.onPointerMove(event));
+            document.addEventListener('pointermove', (event) => this.onPointermove(event));
             document.addEventListener('pointerdown', (event) => this.onPointerDown(event));
             document.addEventListener('pointerup', (event) => this.onPointerUp(event));
+
+
         }
 
     }
@@ -160,26 +152,45 @@ export class SInteractSystem extends System {
 
     }
 
-
     onPointerDown(event: PointerEvent): void {
 
-        if (this.hoveredEntity) {
-            this.bDragging = true;
+        if (event.button === 2 && this.renderSystemRef!.viewMode == 'top') { // 右键按下
+
+            this.bMovingTopCamera = true;
+            this.lastMousePos.x = event.clientX;
+            this.lastMousePos.y = event.clientY;
+
+
+            console.log("interact: right click");
         }
-        else {
-            this.deClick();
+
+
+        else if (event.button === 0) { // 左键按下
+
+            if (this.hoveredEntity) {
+                this.bDragging = true;
+            }
+            else {
+                this.deClick();
+            }
         }
 
     }
 
-
     onPointerUp(event: PointerEvent): void {
-        if (this.bDragging) {
 
-            //you can add condition for click here;
-            this.onClick(this.hoveredEntity!);
-            this.bDragging = false;
+        if (this.bMovingTopCamera && this.renderSystemRef!.viewMode == 'top') { // 右键抬起
+            //console.log("interact: right click up");
+            this.bMovingTopCamera = false;
         }
+
+        else
+            if (this.bDragging) {
+
+                //you can add condition for click here;
+                this.onClick(this.hoveredEntity!);
+                this.bDragging = false;
+            }
     }
 
     updateRaycaster(event: PointerEvent): void {
@@ -193,19 +204,36 @@ export class SInteractSystem extends System {
 
 
     //drag
-    onPointerMove(event: PointerEvent, needUpdateRay: boolean = true): void {
-        //console.log("interact: pointer move");
+    onPointermove(event: PointerEvent, needUpdateRay: boolean = true): void {
+        //console.log("interact: pointer move"); 
 
-        if (needUpdateRay)
+        if (this.bMovingTopCamera && this.renderSystemRef!.viewMode == 'top') {
+
+            const deltaX = event.clientX - this.lastMousePos.x;
+            const deltaY = event.clientY - this.lastMousePos.y;
+
+            const camera = this.renderSystemRef!.top_camera!;
+            const worldOffset = Utils.PixelOffsetToWorld(deltaX, deltaY, camera);
+            camera.position.x += worldOffset.x;
+            camera.position.z += worldOffset.z;
+
+            this.lastMousePos.x = event.clientX;
+            this.lastMousePos.y = event.clientY;
+            return;
+        }
+
+
+
+        //note event and animation is not in sync,so we need to update the raycaster here
+        if (needUpdateRay) {
             this.updateRaycaster(event);
-
-        const renderSystem = this.world.getSystem(SRenderSystem);
+        }
 
         //you don't need to hit test if you are dragging,
         //wich also allows non-perfect sync between the object and the cursor
         if (!this.bDragging) {
             this.hitTest();
-            renderSystem.enableCameraControl();
+            this.renderSystemRef!.enableCameraControl();
 
         }
         else {
@@ -213,7 +241,7 @@ export class SInteractSystem extends System {
 
             const worldPosition = this.getIntersectionWithPlane();
             this.moveEntity(worldPosition, this.hoveredEntity);
-            renderSystem.disableCameraControl();
+            this.renderSystemRef!.disableCameraControl();
         }
     }
 
@@ -230,7 +258,7 @@ export class SInteractSystem extends System {
         if (targetEntity) {
 
             //console.log("interact: hit logic with element");
-            const [group, nodeL, nodeR] = getElementAndNode(targetEntity);
+            const [group, nodeL, nodeR] = ENTT.getElementAndNode(targetEntity);
 
             intersects = this.raycaster.intersectObjects([group.getComponent(COMP.CObject3D)!.group, nodeL.getComponent(COMP.CObject3D)!.group, nodeR.getComponent(COMP.CObject3D)!.group], true);
 
@@ -278,8 +306,7 @@ export class SInteractSystem extends System {
 
 
         } else {
-            //console.log("interact: hit invalid object: " + hitObj.name);
-
+            //console.log("interact: hit invalid object: " + hitObj.name); 
             this.deHoverEntity();
 
         }
@@ -355,30 +382,43 @@ export class SInteractSystem extends System {
             return;
         }
 
-        //console.log("interact: click");   
-        this.gui!.destroy();
-        this.gui = new GUI({ autoPlace: true, title: 'Properties' });
-
-        ['pointerdown', 'pointermove', 'pointerup'].forEach(eventType => {
-            this.gui!.domElement.addEventListener(eventType, (event) => {
-                event.stopPropagation();
-            });
+        //new: destroy all children folders of the gui
+        this.gui.children.forEach((child) => {
+            child.domElement.dispatchEvent(new CustomEvent('destroy'));
+            child.destroy();
         });
 
-        Utils.showPropertiesGUI2(entity, this.gui!, this.world);
+        //this.folder = new GUI({ title: 'Properties' });\
+        let name: string = "Prop";
+        if (entity.hasComponent(COMP.CElement)) {
+            name = this.hoveredEntity!.getComponent(COMP.CElementMetaInfo)!.name;
+        }
+        else if (entity.hasComponent(COMP.CNode)) {
+            name = "Node";
+        }
+        this.dynamicFolder = this.gui.addFolder(name);
+
+        Utils.showPropertiesGUI2(entity, this.dynamicFolder!, this.world);
+
+        this.dirtyFolder = true;
     }
 
     deClick(): void {
-        this.gui!.destroy();
+        if (!this.dynamicFolder) {
+            return;
+        }
+        this.dynamicFolder.domElement.dispatchEvent(new CustomEvent('destroy'));
+        this.dynamicFolder.destroy();
+        this.dynamicFolder = null;
     }
 
 
     onHoverEntity(entity: Entity): void {
         //console.log("interact: highlighted object");
-
+        //for correct state transition
+        //if there is a previous hovered entity, dehighlight it;   
         if (this.hoveredEntity === entity) return;
         else {
-            //if there is a previous hovered entity, dehighlight it;
             this.deHoverEntity();
         }
 
@@ -429,9 +469,9 @@ export class SInteractSystem extends System {
         }
 
         this.raycaster.ray.intersectPlane(this.basePlane, intersection);
-        console.log("interact: intersection: " + intersection.x + " " + intersection.y + " " + intersection.z);
+        //console.log("interact: intersection: " + intersection.x + " " + intersection.y + " " + intersection.z); 
 
-
+        //todo: don't hardcode
         if (this.renderSystemRef!.viewMode == 'VR') {
             intersection.z += 0.6;
         }
@@ -446,10 +486,22 @@ export class SXRInteractSystemL extends SInteractSystem {
 
     public handPointer: OculusHandPointerModel | null = null;
 
+    public guiMesh: HTMLMesh | null = null;
+
     init(): void {
         super.init();
-        //this.basePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
         console.log("init xr interact system");
+
+        this.dynamicFolder?.domElement.addEventListener('destroy', () => {
+
+            if (this.guiMesh) {
+                this.guiMesh.removeFromParent();
+                this.guiMesh.geometry.dispose();
+                this.guiMesh.material.dispose();
+                console.log("interact:destroy prop mesh");
+            }
+        });
+
     }
 
     execute(delta: number, time: number): void {
@@ -474,14 +526,14 @@ export class SXRInteractSystemL extends SInteractSystem {
         //this.updateRaycasterXR();
         //this.getIntersectionWithPlane();
 
-        this.onPointerMove(new PointerEvent('pointermove'), false);
+        this.onPointermove(new PointerEvent('pointermove'), false);
 
         //new: update cursor 
         if (this.hoveredEntity) {
             hp.setCursor(this.rayDistance);
         }
         else {
-            hp.setCursor(0.5);
+            hp.setCursor(5);
         }
 
         if (hp.isPinched()) {
@@ -492,15 +544,32 @@ export class SXRInteractSystemL extends SInteractSystem {
         }
 
 
+        if (this.dirtyFolder) {
+            this.dirtyFolder = false;
+
+            this.dynamicFolder?.domElement.addEventListener('destroy', () => {
+                if (this.dynamicFolder) {
+                    this.dynamicFolder.destroy();
+                    this.dynamicFolder = null;
+                }
+
+                if (this.guiMesh) {
+                    this.guiMesh.removeFromParent();
+                    this.guiMesh.geometry.dispose();
+                    this.guiMesh.material.dispose();
+                    console.log("interact:destroy prop mesh");
+                }
+            });
+
+            this.guiMesh = this.renderSystemRef!.domElementToHTMLMesh(this.dynamicFolder!.domElement);
+            this.guiMesh.position.set(0.7, 0.4, 0);
+            this.guiMesh.material.side = THREE.DoubleSide;
+
+            console.log("interact:update prop mesh");
+
+        }
+
     }
-
-    updateRaycasterXR(): void {
-
-
-        // console.log("interact: ray origin: " + this.raycaster.ray.origin.x + " " + this.raycaster.ray.origin.y + " " + this.raycaster.ray.origin.z);
-        // console.log("interact: ray direction: " + this.raycaster.ray.direction.x + " " + this.raycaster.ray.direction.y + " " + this.raycaster.ray.direction.z);
-    }
-
 }
 
 export class SXRInteractSystemR extends SXRInteractSystemL {

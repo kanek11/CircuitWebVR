@@ -82,7 +82,7 @@ export class CElementMetaInfo extends Component<CElementMetaInfo> {
     // globalID!: number;
 
     static schema = {
-        elementType: { type: Types.String, default: 'invalid element tag' },
+        elementType: { type: Types.String, default: 'invalid element tag', readonly: true },
         name: { type: Types.String, default: 'default element' },
     } as const;
 }
@@ -95,6 +95,14 @@ export type ComponentSchemaProp_Number = ComponentSchemaProp & {
     readonly?: boolean;
     monitorable?: boolean;
 };
+
+export type ComponentSchemaProp_String = ComponentSchemaProp & {
+    readonly?: boolean;
+};
+
+// export type ComponentSchemaProp_Ref = ComponentSchemaProp & {
+//     readonly?: boolean;
+// };
 
 
 
@@ -212,10 +220,19 @@ export class CNode extends Component<CNode> {
 
 export class CResistance extends Component<CResistance> {
     resistance!: number;
+    heat!: number;
 
     static schema = {
         resistance: { type: Types.Number, default: 1, min: 0.1, max: 1000, monitorable: true },
+        heat: { type: Types.Number, default: 0, readonly: true, monitorable: true },
     } as const;
+
+    /*
+    * heat loss = I^2 * R * dt
+    */
+    updateHeat(current: number, dt: number): void {
+        this.heat += this.resistance * current * current * dt;
+    }
 
     dispose(): void {
     }
@@ -255,6 +272,8 @@ export class CInductance extends Component<CInductance> {
     length !: number;
     constant !: number;
 
+    energy!: number;
+
     field!: Field.BField | null;
     helix!: Helix | null;
 
@@ -264,6 +283,7 @@ export class CInductance extends Component<CInductance> {
         radius: { type: Types.Number, default: 1, min: 0.02, max: 0.05, step: 0.01 },
         area: { type: Types.Number, default: 1, readonly: true },
         length: { type: Types.Number, default: 1, min: 0.05, max: 0.2, step: 0.01 },
+        energy: { type: Types.Number, default: 0, readonly: true, monitorable: true },
         constant: { type: Types.Number, default: 1 },
         field: { type: Types.Ref, default: null },
         helix: { type: Types.Ref, default: null },
@@ -276,6 +296,13 @@ export class CInductance extends Component<CInductance> {
     updateInductance(): void {
         this.area = pi * this.radius * this.radius;
         this.inductance = this.constant * this.turns * this.turns * this.area / this.length;
+    }
+
+    /*
+    * W = 0.5 * L * I^2
+    */
+    updateEnergy(current: number): void {
+        this.energy = 0.5 * this.inductance * current * current;
     }
 
     dispose(): void {
@@ -294,6 +321,7 @@ export class CCapacitance extends Component<CCapacitance> {
 
     //driven by simulation
     charge!: number;
+    energy!: number;
 
     //auxiliary information
     field!: Field.EField | null;
@@ -303,6 +331,7 @@ export class CCapacitance extends Component<CCapacitance> {
         spacing: { type: Types.Number, default: 1, min: 0.02, max: 0.1 },
         edge: { type: Types.Number, default: 1, min: 0.02, max: 0.2 },
         constant: { type: Types.Number, default: 0.1 },
+        energy: { type: Types.Number, default: 0, readonly: true, monitorable: true },
 
         charge: { type: Types.Number, default: 0, readonly: true, monitorable: true },
 
@@ -314,6 +343,14 @@ export class CCapacitance extends Component<CCapacitance> {
      */
     updateCharge(voltage: number): void {
         this.charge = this.capacitance * voltage;
+    }
+
+
+    /**
+     *  W = 0.5 * C * V^2
+     */
+    updateEnergy(voltage: number): void {
+        this.energy = 0.5 * this.capacitance * voltage * voltage;
     }
 
     /**

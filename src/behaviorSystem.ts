@@ -10,6 +10,7 @@ import { SSimulateSystem } from './simulateSystem';
 import * as Field from "./field";
 
 import { Globals, RenderMode } from "./globals";
+import { abs } from 'mathjs';
 
 export function colorMap(value: number, min: number, max: number): THREE.Color {
     const alpha = (value - min) / (max - min);
@@ -109,13 +110,14 @@ export class SElementBehaviorSystem extends System {
 
             //state 
             cInductance.updateInductance();
+            cInductance.updateEnergy(cElement.current);
 
             //model
             ENTT.syncInductanceModel(entity, true);
 
             //the field:
             const field = cInductance.field!;
-            field.update(entity, Math.abs(cElement.current));
+            field.update(entity);
 
         });
 
@@ -134,6 +136,7 @@ export class SElementBehaviorSystem extends System {
 
             cCapacitor.updateCapacitance();
             cCapacitor.updateCharge(voltage);
+            cCapacitor.updateEnergy(voltage);
 
             //model
             ENTT.syncCapacitorModel(entity, true);
@@ -183,7 +186,6 @@ class particlePool {
                 particle.material.depthTest = false;
                 particle.material.depthWrite = false;
 
-                //dont relay on visibility,   
                 particle.userData.isFree = true;
                 this.arrowPool.push(particle);
             }
@@ -196,7 +198,7 @@ class particlePool {
                 particle.material.depthTest = false;
                 particle.material.depthWrite = false;
 
-                //dont relay on visibility,   
+
                 particle.userData.isFree = true;
                 this.particlePool.push(particle);
             }
@@ -244,6 +246,11 @@ export class SCurrentRenderSystem extends System {
     onModeChange(mode: RenderMode) {
         //dump old particles
         this.queries.elements.results.forEach(entity => {
+            if (!entity.alive) {
+                console.error("entity is not alive");
+                return;
+            }
+
             const cObject = entity.getComponent(COMP.CObject3D)!;
             const particles = cObject.group.getObjectByName("particleGroup") as THREE.Group;
             if (particles) { this.particlePool.releaseGroup(particles); }
@@ -284,6 +291,10 @@ export class SCurrentRenderSystem extends System {
         //console.log("current render system");   
 
         this.queries.elements.added!.forEach(entity => {
+            if (!entity.alive) {
+                console.error("entity is not alive: " + entity.id + "/time: " + time);
+                return;
+            }
             const particles = new THREE.Group();
             particles.name = "particleGroup";
 
@@ -294,6 +305,11 @@ export class SCurrentRenderSystem extends System {
         });
 
         this.queries.elements.removed!.forEach(entity => {
+            if (!entity.alive) {
+                console.error("entity is not alive: " + entity.id + "/time: " + time);
+                return;
+            }
+
             console.log("remove particles: id=" + entity.id);
             const group = this.groupMap.get(entity.id);
             if (group) {
@@ -320,6 +336,10 @@ export class SCurrentRenderSystem extends System {
 
 
         this.queries.capacitors.added!.forEach(entity => {
+            if (!entity.alive) {
+                console.error("entity is not alive: " + entity.id + "/time: " + time);
+                return;
+            }
             const chargeGroup = new THREE.Group();
             chargeGroup.name = "chargeGroup";
 
@@ -384,6 +404,10 @@ export class SCurrentRenderSystem extends System {
     updateCurrent(delta: number) {
 
         this.queries.elements.results.forEach(element => {
+            if (!element.alive) {
+                console.error("element is not alive");
+                return;
+            }
 
             //const element = elements[id];
             //this.updateParticles(entity);  
@@ -404,17 +428,19 @@ export class SCurrentRenderSystem extends System {
             particles.children.forEach((ptcMesh, i) => {
 
                 const pos = ptcMesh.position;
-                const dist = delta * this.speedScale * current;
+                let dist = delta * this.speedScale * current;
 
-                if (dist === 0) {
-                    particles.visible = false;
-                    return;
+                if (abs(dist) < 1e-6) {
+                    dist = 0;  //prevent numerical jitter
+                    Field.pointArrowToDir(ptcMesh as THREE.Mesh, new THREE.Vector3(0, 1.0, 0));
+                    //particles.visible = false;
+                    //return;
                 }
                 else {
-                    particles.visible = true;
+                    Field.pointArrowToDir(ptcMesh as THREE.Mesh, new THREE.Vector3(dist, 0, 0));
                 }
 
-                Field.pointArrowToDir(ptcMesh as THREE.Mesh, new THREE.Vector3(dist, 0, 0));
+
 
                 // console.log("delta: " + delta + " speed: " + this.speed + " current: " + current);
                 // console.log("move dist: " + dist);
@@ -445,12 +471,16 @@ export class SCurrentRenderSystem extends System {
 
                     }
                     else {
-                        //ptcMesh.visible = false;
+
+                        ptcMesh.visible = false;
+
                         pos.x += dist;
                     }
                 }
                 else {
-                    //ptcMesh.visible = true;
+
+                    ptcMesh.visible = true;
+
                     pos.x += dist;
 
                     //new: reset displacement from the center
@@ -611,10 +641,10 @@ export class SCurrentRenderSystem extends System {
             }
 
             if (element.hasComponent(COMP.CInductance)) {
-                const cInductance = element.getComponent(COMP.CInductance)!;
+                // const cInductance = element.getComponent(COMP.CInductance)!;
 
-                const coilMesh = cObject.group.getObjectByName("coil") as THREE.Mesh;
-                (coilMesh.material as THREE.MeshStandardMaterial).color.set(colorL);
+                // const coilMesh = cObject.group.getObjectByName("coil") as THREE.Mesh;
+                // (coilMesh.material as THREE.MeshStandardMaterial).color.set(colorL);
             }
 
             if (element.hasComponent(COMP.CDCVoltage)) {
@@ -627,16 +657,16 @@ export class SCurrentRenderSystem extends System {
             }
 
             if (element.hasComponent(COMP.CResistance)) {
-                const resistorMesh = cObject.group.getObjectByName("resistor") as THREE.Mesh;
-                (resistorMesh.material as THREE.MeshStandardMaterial).color.set(colorL);
+                // const resistorMesh = cObject.group.getObjectByName("resistor") as THREE.Mesh;
+                // (resistorMesh.material as THREE.MeshStandardMaterial).color.set(colorL);
                 //todo: driven by both sides
             }
 
 
             if (element.hasComponent(COMP.CACVoltage)) {
 
-                const mesh = cObject.group.getObjectByName("sphere") as THREE.Mesh;
-                (mesh.material as THREE.MeshStandardMaterial).color.set(colorL);
+                // const mesh = cObject.group.getObjectByName("sphere") as THREE.Mesh;
+                // (mesh.material as THREE.MeshStandardMaterial).color.set(colorL);
             }
 
 

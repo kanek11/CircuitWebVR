@@ -11,6 +11,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial';
 import { World, System, Component, Entity, Types } from 'ecsy';
 import * as COMP from "./components";
 import * as ENTT from "./entities";
+import { Globals } from './globals';
 
 /**
  * warn:
@@ -183,6 +184,7 @@ export class EField {
             return;
         }
         const cCapacitance = entity.getComponent(COMP.CCapacitance)!;
+        const cElement = entity.getComponent(COMP.CElement)!;
         const edge = cCapacitance.edge;
         const size = cCapacitance.spacing;
         const charge = cCapacitance.charge;
@@ -194,7 +196,7 @@ export class EField {
         // }
 
         //flip
-        let intensity = Math.abs(charge);
+        let intensity = Math.abs(cElement.voltage) / Globals.capacitorFieldRange;
         let dir = charge >= 0 ? 1 : -1;
 
         this.fieldGroup.scale.x = size;
@@ -203,7 +205,7 @@ export class EField {
 
         this.fieldLines.forEach((line, index) => {
             const material = line.material as LineMaterial;
-            material.opacity = intensity + 0.1;
+            material.opacity = intensity;//+ 0.1;
             material.needsUpdate = true;
         });
 
@@ -212,7 +214,7 @@ export class EField {
             arrow.position.set(0, chargePos.y * edge, chargePos.z * edge);
             arrow.scale.set(0.05, 0.05 * dir, 0.05);  //arrow is y-up, so we need to flip it 
             const material = arrow.material as THREE.MeshBasicMaterial;
-            material.opacity = intensity + 0.1;
+            material.opacity = intensity;//+ 0.1;
         });
 
 
@@ -431,7 +433,7 @@ export class BField {
     /**
      * 如果需要根据某个实体或强度等，动态更新 B 场
      */
-    public update(entity: Entity, intensity = 1): void {
+    public update(entity: Entity): void {
         if (!entity.hasComponent(COMP.CInductance)) {
             console.error("BField: Entity does not have CInductance component");
             return;
@@ -440,13 +442,11 @@ export class BField {
         const cInductance = entity.getComponent(COMP.CInductance)!;
         const cElement = entity.getComponent(COMP.CElement)!;
 
-        if (cElement.voltage < 0) {
-        }
-
+        const intensity = Math.abs(cElement.current) / Globals.inductorFieldRange;
 
         this.fieldLines.forEach((line) => {
             const material = line.material as LineMaterial;
-            material.opacity = intensity + 0.3;
+            material.opacity = intensity;  //+ 0.3;
             material.needsUpdate = true;
         });
 

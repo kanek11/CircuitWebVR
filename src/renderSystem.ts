@@ -48,7 +48,7 @@ export class SRenderSystem extends System {
     public supportGroup: Group = new THREE.Group();  //not saved but relevant
     public basePlane = new THREE.Plane(new Vector3(0, 1, 0), 0);  //pure math
 
-    private stats: Stats = new Stats();
+    public stats: Stats = new Stats();
 
     public viewMode: ViewMode = "top";
     public main_camera: THREE.PerspectiveCamera | null = null;
@@ -57,7 +57,7 @@ export class SRenderSystem extends System {
     public cameraControl: OrbitControls | null = null;
     public transformControl: TransformControls | null = null;
 
-    public width = 1.0;
+    public width = 1.5;
 
     public envMap: THREE.Texture | null = null;
 
@@ -137,6 +137,8 @@ export class SRenderSystem extends System {
         console.log("init render system");
 
         this.scene.name = "threejs top-level scene";
+
+
         this.interactiveGroup.name = "streamming group";
         this.supportGroup.name = "support group";
         this.scene.add(this.interactiveGroup);
@@ -176,7 +178,6 @@ export class SRenderSystem extends System {
 
         //new:
         const axesHelper = new THREE.AxesHelper(1);
-        axesHelper.renderOrder = Globals.axisRenderOrder;
 
         axesHelper.name = "axesHelper";
         axesHelper.raycast = () => null;
@@ -353,6 +354,21 @@ export class SRenderSystem extends System {
         const vrButton = VRButton.createButton(this.renderer, sessionInit);
         document.body.appendChild(vrButton);
         this.vrButton = vrButton;
+        ['pointerdown', 'pointerup'].forEach(eventType => {
+            vrButton.addEventListener(eventType, (event) => {
+                event.stopPropagation();
+            });
+        });
+
+
+        this.main_camera!.position.y = height + 0.2;
+        this.main_camera!.position.z = 0;
+        this.main_camera!.lookAt(0, height, -forward);
+
+
+        // todo: adjust camera control as camera update
+        this.cameraControl!.target.set(0, height, -forward);
+
 
 
         this.initXRControls();
@@ -378,12 +394,23 @@ export class SRenderSystem extends System {
         const renderer = this.renderer;
         const scene = this.scene;
 
+
+        //ray line
+        const geometry = new THREE.BufferGeometry();
+        geometry.setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -5)]);
+
         // controllers
         const controller1 = renderer.xr.getController(0);
         controller1.name = "controller1";
+        controller1.add(new THREE.Line(geometry));
+
+
         const controller2 = renderer.xr.getController(1);
         controller2.name = "controller2";
+        controller2.add(new THREE.Line(geometry));
 
+
+        //models
         const controllerModelFactory = new XRControllerModelFactory();
 
         // Hand 1
@@ -423,19 +450,23 @@ export class SRenderSystem extends System {
 
         const guiGroup = new InteractiveGroup();
         this.guiGroup = guiGroup;
+        scene.add(guiGroup);
 
         guiGroup.listenToPointerEvents(renderer, this.main_camera!);
         guiGroup.listenToXRControllerEvents(controller1);
         guiGroup.listenToXRControllerEvents(controller2);
-        scene.add(guiGroup);
+
+
+        this.interactiveGroup.add(guiGroup);
 
 
     }
 
 
-    domElementtoHTMLMesh(domElement: HTMLElement): HTMLMesh {
+    domElementToHTMLMesh(domElement: HTMLElement): HTMLMesh {
 
         const mesh = new HTMLMesh(domElement);
+        //mesh.addEventListener
 
         this.guiGroup!.add(mesh);
 

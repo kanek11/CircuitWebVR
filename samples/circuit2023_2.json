@@ -1,0 +1,373 @@
+{
+  "entities": [
+    {
+      "id": 99,
+      "elementType": "entity",
+      "components": [
+        {
+          "type": "CTransform",
+          "data": {
+            "position": {
+              "x": 0.05000000000000001,
+              "y": 0,
+              "z": 0.05
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "CObject3D",
+          "data": {}
+        },
+        {
+          "type": "CElementMetaInfo",
+          "data": {
+            "elementType": "inductor",
+            "name": "inductor0"
+          }
+        },
+        {
+          "type": "CElement",
+          "data": {
+            "current": 0.000318919706382406,
+            "voltage": 0.009031156850778368,
+            "elementSize": 0.1,
+            "length": 0.2
+          }
+        },
+        {
+          "type": "CInductance",
+          "data": {
+            "inductance": 0.49087385212340523,
+            "turns": 5,
+            "radius": 0.025,
+            "area": 0.001963495408493621,
+            "length": 0.1,
+            "energy": 2.4963335537391938e-8,
+            "constant": 1
+          }
+        },
+        {
+          "type": "CLabel3D",
+          "data": {
+            "text": "0.49H\n0.00A\n0.01Vd",
+            "font": "48px Arial",
+            "backgroundColor": "rgba(0, 0, 0, 0.0)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 96,
+      "elementType": "entity",
+      "components": [
+        {
+          "type": "CTransform",
+          "data": {
+            "position": {
+              "x": -0.15,
+              "y": 0,
+              "z": 0.05
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "CObject3D",
+          "data": {}
+        },
+        {
+          "type": "CElementMetaInfo",
+          "data": {
+            "elementType": "resistor",
+            "name": "resistor0"
+          }
+        },
+        {
+          "type": "CElement",
+          "data": {
+            "current": 0.0003189197063824064,
+            "voltage": -0.0003189197063824064,
+            "elementSize": 0.1,
+            "length": 0.2
+          }
+        },
+        {
+          "type": "CResistance",
+          "data": {
+            "resistance": 1,
+            "heat": 0
+          }
+        },
+        {
+          "type": "CLabel3D",
+          "data": {
+            "text": "1.00R\n0.00A\n0.00Vd",
+            "font": "48px Arial",
+            "backgroundColor": "rgba(0, 0, 0, 0.0)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 93,
+      "elementType": "entity",
+      "components": [
+        {
+          "type": "CTransform",
+          "data": {
+            "position": {
+              "x": 0.25,
+              "y": 0,
+              "z": 0.05
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "CObject3D",
+          "data": {}
+        },
+        {
+          "type": "CElementMetaInfo",
+          "data": {
+            "elementType": "capacitor",
+            "name": "capacitor0"
+          }
+        },
+        {
+          "type": "CElement",
+          "data": {
+            "current": 0.00031892053796112724,
+            "voltage": -1.003461746090144,
+            "elementSize": 0.1,
+            "length": 0.2
+          }
+        },
+        {
+          "type": "CCapacitance",
+          "data": {
+            "capacitance": 0.10000000000000002,
+            "spacing": 0.1,
+            "edge": 0.1,
+            "constant": 1,
+            "energy": 0.050346773793314044,
+            "charge": -0.10034617460901442
+          }
+        },
+        {
+          "type": "CLabel3D",
+          "data": {
+            "text": "0.10F\n0.00A\n1.00Vd",
+            "font": "48px Arial",
+            "backgroundColor": "rgba(0, 0, 0, 0.0)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 90,
+      "elementType": "entity",
+      "components": [
+        {
+          "type": "CTransform",
+          "data": {
+            "position": {
+              "x": 0.05000000000000002,
+              "y": 0,
+              "z": -0.15000000000000002
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "CObject3D",
+          "data": {}
+        },
+        {
+          "type": "CElementMetaInfo",
+          "data": {
+            "elementType": "AC voltage",
+            "name": "AC voltage0"
+          }
+        },
+        {
+          "type": "CElement",
+          "data": {
+            "current": -0.0003190814731717887,
+            "voltage": -0.994749508946386,
+            "elementSize": 0.05,
+            "length": 0.6000000000000001
+          }
+        },
+        {
+          "type": "CACVoltage",
+          "data": {
+            "amp": 1,
+            "freq": 3
+          }
+        },
+        {
+          "type": "CLabel3D",
+          "data": {
+            "text": "\n0.00A\n0.99Vd",
+            "font": "48px Arial",
+            "backgroundColor": "rgba(0, 0, 0, 0.0)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 87,
+      "elementType": "entity",
+      "components": [
+        {
+          "type": "CTransform",
+          "data": {
+            "position": {
+              "x": 0.35000000000000003,
+              "y": 0,
+              "z": -0.05000000000000001
+            },
+            "rotation": {
+              "x": 0,
+              "y": 1.5707963267948966,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "CObject3D",
+          "data": {}
+        },
+        {
+          "type": "CElementMetaInfo",
+          "data": {
+            "elementType": "wire",
+            "name": "wire0"
+          }
+        },
+        {
+          "type": "CElement",
+          "data": {
+            "current": 0.0003190814287890181,
+            "voltage": -3.190814287890181e-13,
+            "elementSize": 0,
+            "length": 0.2
+          }
+        },
+        {
+          "type": "CWire",
+          "data": {}
+        },
+        {
+          "type": "CLabel3D",
+          "data": {
+            "text": "\n0.00A\n0.00Vd",
+            "font": "48px Arial",
+            "backgroundColor": "rgba(0, 0, 0, 0.0)"
+          }
+        }
+      ]
+    },
+    {
+      "id": 84,
+      "elementType": "entity",
+      "components": [
+        {
+          "type": "CTransform",
+          "data": {
+            "position": {
+              "x": -0.25,
+              "y": 0,
+              "z": -0.05000000000000001
+            },
+            "rotation": {
+              "x": 0,
+              "y": -1.5707963267948966,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "CObject3D",
+          "data": {}
+        },
+        {
+          "type": "CElementMetaInfo",
+          "data": {
+            "elementType": "wire",
+            "name": "wire1"
+          }
+        },
+        {
+          "type": "CElement",
+          "data": {
+            "current": 0.0003189192209483848,
+            "voltage": -3.1891922094838477e-13,
+            "elementSize": 0,
+            "length": 0.2
+          }
+        },
+        {
+          "type": "CWire",
+          "data": {}
+        },
+        {
+          "type": "CLabel3D",
+          "data": {
+            "text": "\n0.00A\n0.00Vd",
+            "font": "48px Arial",
+            "backgroundColor": "rgba(0, 0, 0, 0.0)"
+          }
+        }
+      ]
+    }
+  ]
+}

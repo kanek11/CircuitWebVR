@@ -24,6 +24,25 @@ export const generateUniqueName = (elementType: COMP.ElementTypeName): string =>
 };
 
 
+
+export function getElementAndNode(entity: Entity): [Entity, Entity, Entity] {
+    if (entity.hasComponent(COMP.CElement)) {
+        const cElement = entity.getComponent(COMP.CElement)!;
+        return [entity, cElement.nodeL, cElement.nodeR];
+
+    }
+    if (entity.hasComponent(COMP.CNode)) {
+        const element = entity.getComponent(COMP.CNode)!.element;
+        const cElement = element.getComponent(COMP.CElement)!;
+        return [element, cElement.nodeL, cElement.nodeR];
+    }
+    else
+        throw new Error("get invalid entity");
+
+}
+
+
+
 //x axis for left, right;  left = +x;
 //z for front, back;  front= +z;
 export enum Dir {
@@ -92,11 +111,6 @@ export const removeEntity = (world: World, entity: Entity) => {
         element.nodeL.remove();
         element.nodeR.removeAllComponents();
         element.nodeR.remove();
-
-        const group = entity.getComponent(COMP.CObject3D)!.group as THREE.Group;
-
-
-        group.getObjectByName("particleGroup");
     }
 
     //remove all components
@@ -113,10 +127,6 @@ export const removeEntity = (world: World, entity: Entity) => {
 
 
 
-
-
-
-
 export type ICapacitorParams = Partial<COMP.CCapacitance>;
 
 export const createCapacitor: EntityFactory2<ICapacitorParams> = (
@@ -124,7 +134,7 @@ export const createCapacitor: EntityFactory2<ICapacitorParams> = (
     params: ICapacitorParams = {
         spacing: 0.1,
         edge: 0.1,
-        constant: 0.01
+        constant: 1
     }
 ): Entity => {
     const entity = createElement(world);
@@ -135,7 +145,7 @@ export const createCapacitor: EntityFactory2<ICapacitorParams> = (
     //initial parameters
     const spacing = params.spacing ?? 0.1;
     const edge = params.edge ?? 0.1;
-    const constant = params.constant ?? 0.01;
+    const constant = params.constant ?? 1;
     const area = edge * edge;
 
     const capacitance = constant * area / spacing;

@@ -1,5 +1,38 @@
   
-            // const worldPosition = Utils.PixelToWorld(event, this.world.getSystem(SRenderSystem).top_camera!);
+   
+
+  // systemGUI.add({ saveScene: () => Utils.saveObject3D(group), }, 'saveScene').name('Save Scene');
+
+  // const input = document.createElement('input');
+  // input.type = 'file';
+  // input.id = 'fileInput1';
+  // systemGUI.domElement.appendChild(input);
+
+  // input.addEventListener('change', (event) => {
+  //   (async () => {
+  //     //printSceneInfo(group);  // 打印旧场景信息
+
+  //     const newGroup = await Utils.loadObject3D(event.target as HTMLInputElement);
+  //     if (newGroup) {
+  //       renderSystem.replaceStreamGroup(newGroup);
+  //     }
+
+  //     // console.log("scene after: ",);
+  //     // printSceneInfo(group);  // 打印新场景信息
+  //   })().catch(console.error);
+
+  // });
+
+
+
+
+
+
+
+
+
+
+         // const worldPosition = Utils.PixelToWorld(event, this.world.getSystem(SRenderSystem).top_camera!);
 
         // const outlinePass = this.world.getSystem(SRenderSystem).outlinePass!; 
         // outlinePass.selectedObjects = [obj as THREE.Mesh];

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { World, System, Component, Entity, Types } from 'ecsy';
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import * as COMP from "./components";
 import * as ENTT from "./entities";
@@ -33,7 +34,7 @@ interface ILineState2 {
 
 
 export class Graph2 {
-    private canvas: HTMLCanvasElement;
+    public canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private width;
     private height;
@@ -41,12 +42,12 @@ export class Graph2 {
     private oX = 0;
     private oY;
 
-
-    private yRange = 10; //range of y
+    private yRange = 1; //range of y
     private yScale;
 
     private time = 0;
-    private interval = 3; //s
+    private timeScale = 1;
+    private interval = 3; //contain 3s of data
 
     private maxDataPoints; // Limit number of points shown 
 
@@ -55,7 +56,6 @@ export class Graph2 {
     constructor() {
 
         this.canvas = document.createElement("canvas");
-
 
         const options = { willReadFrequently: true };
         this.ctx = this.canvas.getContext('2d', options) as CanvasRenderingContext2D;
@@ -84,8 +84,6 @@ export class Graph2 {
 
         this.canvas.style.backgroundColor = "black";
         this.canvas.style.position = "absolute";
-        this.canvas.style.top = "75%";  //offset from the 70% top
-        this.canvas.style.left = "0px";
         this.canvas.style.zIndex = "2";
 
 
@@ -99,35 +97,47 @@ export class Graph2 {
     }
 
 
-    //todo: off for now
-    asTexture(_scene: THREE.Scene) {
+    setYRange(yRange: number): void {
+        this.yRange = yRange;
+        this.yScale = this.height / 2 * 1 / this.yRange;
 
-        // const texture = new THREE.CanvasTexture(this.canvas);
-        // const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-        // const sprite = new THREE.Sprite(spriteMaterial);
-        // sprite.name = "graphTexture";
-        // sprite.renderOrder = Globals.labelRenderOrder;
-        // sprite.material.depthTest = false;
-        // sprite.material.depthWrite = false;
-        // // sprite.visible = false;
-        // // sprite.material.map = null;
+        this.clearCanvas();
+    }
 
-        // sprite.scale.set(0.5, 0.25, 1);
-        // sprite.position.set(0.2, 0, -0.3);
+    setTimeScale(scale: number): void {
 
-        // sprite.raycast = () => { };
+        this.timeScale = scale;
+        this.maxDataPoints = Math.floor(this.interval / scale / 0.016);
 
-        // _scene.add(sprite);
-        // this.texture = texture;
+        this.clearCanvas();
+        console.log("set time scale: ", scale, "interval: ", this.interval, "maxDataPoints: ", this.maxDataPoints);
     }
 
 
+    canvasAsTexture(): THREE.Mesh {
 
-    beginDraw(time: number): void {
+        const texture = new THREE.CanvasTexture(this.canvas);
+        this.texture = texture;
+
+        const meshMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        const geometry = new THREE.PlaneGeometry(1, 1 * this.height / this.width);
+
+        const canvasPlane = new THREE.Mesh(geometry, meshMaterial);
+
+        return canvasPlane;
+    }
+
+    clearCanvas(): void {
         //clear the canvas
         this.ctx.clearRect(0, 0, this.width, this.height);
         this.ctx.fillStyle = "black";
         this.ctx.fillRect(0, 0, this.width, this.height);
+    }
+
+
+    beginDraw(time: number): void {
+        //clear the canvas
+        this.clearCanvas();
 
         this.time = time;
 
@@ -141,15 +151,34 @@ export class Graph2 {
         for (let i = firstTick; i <= this.time; i += 0.5) {
             const x = this.translateX(i);
             this.drawYAxis(this.ctx, x);
+            this.drawText(i.toFixed(1), x, this.oY + 20);
         }
+
+        //Y range at right top corner
+        this.drawText("max Y: " + this.yRange, this.width - 100, 20);
+
+        //current time step:
+        this.drawText("step: " + 0.016 * this.timeScale, this.width - 100, 40);
+
     }
+
+
+    drawText(text: string, x: number, y: number): void {
+        if (x < 0) {
+            return;
+        }
+        this.ctx.font = "16px Arial";
+        this.ctx.fillStyle = "white";
+        this.ctx.fillText(text, x, y);
+    }
+
+
 
     endDraw(time: number): void {
 
         if (this.texture) {
             this.texture.needsUpdate = true;
         }
-
 
     }
 
@@ -178,11 +207,12 @@ export class Graph2 {
 
     }
 
-    drawText(text: string, line: ILineState2, index: number): void {
+    drawLineInfo(text: string, line: ILineState2, index: number): void {
         this.ctx.font = "16px Arial";
         this.ctx.fillStyle = line.strokeStyle;
         this.ctx.fillText(text, 10, 20 + index * 20);
     }
+
 
 
     translateY(y: number): number {
@@ -248,8 +278,6 @@ export class SGraphSystem extends System {
         console.log("init graph system");
         //this.graph.drawAxies(); 
 
-        const scene = this.world.getSystem(SRenderSystem).scene;
-        this.graph.asTexture(scene);
     }
 
     execute(delta: number, time: number): void {
@@ -266,7 +294,7 @@ export class SGraphSystem extends System {
         Array.from(this.lines.entries()).forEach(([name, line], index) => {
             const y = line.getValue();
             this.graph.drawLine(line, y, time);
-            this.graph.drawText(name, line, index);
+            this.graph.drawLineInfo(name, line, index);
             //console.log("draw line: ", name, "y: ", y);
         });
         this.graph.endDraw(time);

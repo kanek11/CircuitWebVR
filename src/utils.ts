@@ -8,7 +8,7 @@ import * as COMP from "./components";
 import * as ENTT from "./entities";
 
 import { SGraphSystem } from './graphSystem';
-
+import { Globals } from "./globals";
 
 
 //ts expect all possible keys to be defined
@@ -33,13 +33,11 @@ export const elementFactoryMap: Record<COMP.ElementTypeName, () => any> = {
 
 
 
-export function PixelToWorld(event: MouseEvent, camera: THREE.OrthographicCamera): Vector3 {
-    //const camera = this.world.getSystem(SRenderSystem).top_camera!;
-
+export function PixelCoordToWorld(x: number, y: number, camera: THREE.OrthographicCamera): Vector3 {
     // Step 1: Convert screen coordinates to NDC
     const ndc = new Vector2(
-        (event.clientX / window.innerWidth) * 2 - 1,  // X: [0, window.width] -> [-1, 1]
-        -(event.clientY / window.innerHeight) * 2 + 1 // Y: [0, window.height] -> [-1, 1]
+        (x / window.innerWidth) * 2 - 1,  // X: [0, window.width] -> [-1, 1]
+        -(y / window.innerHeight) * 2 + 1 // Y: [0, window.height] -> [-1, 1]
     );
 
     // Step 2: Map NDC to world space using the orthographic camera
@@ -53,6 +51,14 @@ export function PixelToWorld(event: MouseEvent, camera: THREE.OrthographicCamera
 
 }
 
+export function PixelOffsetToWorld(x: number, y: number, camera: THREE.OrthographicCamera): Vector3 {
+
+    const dx = x * (camera.right - camera.left) / window.innerWidth;
+    const dy = y * (camera.top - camera.bottom) / window.innerHeight;
+
+    return new Vector3(dx, 0, dy);
+
+}
 
 
 
@@ -75,12 +81,22 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
     const controlFolder = gui.addFolder('Control');
     controlFolder.add({ remove: () => ENTT.removeEntity(world, entity), }, 'remove').name('remove');
 
+    const monitorFolder = gui.addFolder('Monitor Properties');
+
+
 
     Object.entries(components).forEach(([componentName, componentInstance]) => {
         //console.log("componentName: ", componentName);
 
         // console.log("type: ", typeof (componentInstance));
         const typeName = componentInstance.constructor.name;
+
+        if (typeName === 'CLabel3D') {
+            return;
+        }
+
+
+
 
         //get schema, static member of the type 
         const schema = (componentInstance.constructor as any).schema;
@@ -96,33 +112,46 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
             const fieldSchema = schema[schemaKey];
 
             if (fieldSchema.type === Types.Ref && componentInstance[compKey] instanceof THREE.Vector3) {
+                if (Globals.debugMode) {
+                    const vector = componentInstance[compKey] as THREE.Vector3;
+                    const subfolder = compFolder.addFolder(key);
+                    subfolder.add(vector, 'x').name('x').disable().listen();
+                    subfolder.add(vector, 'y').name('y').disable().listen();
+                    subfolder.add(vector, 'z').name('z').disable().listen();
 
-                const vector = componentInstance[compKey] as THREE.Vector3;
-                const subfolder = compFolder.addFolder(key);
-                subfolder.add(vector, 'x').name('x').disable().listen();
-                subfolder.add(vector, 'y').name('y').disable().listen();
-                subfolder.add(vector, 'z').name('z').disable().listen();
+                    //collapse the folder at start
+                    subfolder.close();
+                }
 
-                //collapse the folder at start
-                subfolder.close();
+
             }
 
             else if (fieldSchema.type === Types.Ref && componentInstance[compKey] instanceof THREE.Group) {
 
-                const group = componentInstance[compKey] as THREE.Group;
-                compFolder.add({ message: group.name }, 'message').name(key).disable();
+                if (Globals.debugMode) {
+                    const group = componentInstance[compKey] as THREE.Group;
+                    compFolder.add({ message: group.name }, 'message').name(key).disable();
+                }
+
             }
 
             else if (fieldSchema.type === Types.String) {
-                compFolder.add(componentInstance, key).name(key).listen();
+                const stringSchema = fieldSchema as COMP.ComponentSchemaProp_String;
+                const controller = compFolder.add(componentInstance, key).name(key).listen();
+                if (stringSchema.readonly) {
+                    controller.disable();
+                }
             }
 
             else if (fieldSchema.type === Types.Boolean) {
-                compFolder.add(componentInstance, key).name(key).listen();
+                if (Globals.debugMode) {
+                    compFolder.add(componentInstance, key).name(key).listen();
+                }
             }
             else if (fieldSchema.type === Types.Number) {
-
                 const numberSchema = fieldSchema as COMP.ComponentSchemaProp_Number;
+
+
                 const controller = compFolder.add(componentInstance, key, numberSchema.min, numberSchema.max).name(key).listen();
                 if (numberSchema.readonly) {
                     controller.disable();
@@ -131,10 +160,11 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
                     controller.step(numberSchema.step);
                 }
 
+
                 if (numberSchema.monitorable) {
                     const lineName = entityName + '.' + key;
                     const hasKey = graphSystem.hasMonitored(lineName);
-                    controlFolder.add({ monitor: hasKey }, 'monitor').name(key).onChange((value) => {
+                    monitorFolder.add({ monitor: hasKey }, 'monitor').name(key).onChange((value) => {
                         if (value) {
                             graphSystem.addLine(lineName, () => {
                                 return componentInstance[compKey] as unknown as number;
@@ -148,11 +178,22 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
             }
             else {
                 //add a text says it's not supported
-                compFolder.add({ message: 'type not handled' }, 'message').name(key).disable();
+                if (Globals.debugMode)
+                    compFolder.add({ message: 'type not handled' }, 'message').name(key).disable();
             }
 
 
         }; //iterate over schema
+
+
+
+        //if no controllers, delete the folder
+        if (!Globals.debugMode)
+            if (compFolder.children.length === 0) {
+                compFolder.destroy();
+            }
+
+
     }); //iterate over components
 
 }
@@ -283,7 +324,10 @@ export function saveWorld(entts: Array<Entity>): any {
     });
 
 
-    saveToFile({ entities: entitiesData }, "world.json");
+    const date = new Date();
+    const fileName = 'circuit' + date.toISOString().slice(0, -5).
+        replace(/:/g, '-').replace(/\./g, '-').replace('T', '_') + '.json';
+    saveToFile({ entities: entitiesData }, fileName);
     return { entities: entitiesData };
 
 }
@@ -302,6 +346,10 @@ export async function loadWorldFromFileInput(fileInput: HTMLInputElement, world:
 
 //untested
 export async function loadWorldFromFilePath(filePath: string, world: World): Promise<void> {
+    if (!filePath) {
+        console.error("Invalid file path");
+        return;
+    }
 
     const response = await fetch(filePath);
     const data = await response.json();
@@ -312,8 +360,7 @@ export async function loadWorldFromFilePath(filePath: string, world: World): Pro
 
 async function processWorldFile(data: any, world: World): Promise<void> {
     try {
-
-        console.log("entitiesData: ", data);
+        //console.log("entitiesData: ", data);
 
         if (!data || !data.entities) {
             console.error('Invalid world data');
@@ -369,5 +416,6 @@ async function processWorldFile(data: any, world: World): Promise<void> {
         console.error("Fail loading world:", error);
     }
 }
+
 
 
