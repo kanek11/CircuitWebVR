@@ -97,6 +97,7 @@ function initEditor(world: World) {
     .registerComponent(COMP.CElementMetaInfo)
     .registerComponent(COMP.CElement)
     .registerComponent(COMP.CNode)
+    .registerComponent(COMP.CNodeSim)
     .registerComponent(COMP.CResistance)
     .registerComponent(COMP.CDCVoltage)
     .registerComponent(COMP.CACVoltage)
@@ -124,36 +125,6 @@ function printSceneInfo(scene: THREE.Object3D) {
     console.log("child: ", child);
   });
 }
-
-
-
-
-function debugView(world: World) {
-
-  world
-    .registerComponent(COMP.CTransform)
-    .registerComponent(COMP.CObject3D)
-    .registerComponent(COMP.CElementMetaInfo)
-    .registerComponent(COMP.CElement)
-    .registerComponent(COMP.CNode)
-    .registerComponent(COMP.CResistance)
-    .registerComponent(COMP.CDCVoltage)
-    .registerComponent(COMP.CInductance)
-    .registerComponent(COMP.CCapacitance)
-    .registerComponent(COMP.CWire)
-    .registerComponent(COMP.CLabel3D)
-    .registerSystem(SRenderSystem)
-    //.registerSystem(SInteractSystem)
-    //.registerSystem(SSimulateSystem)
-    .registerSystem(SBrowserSystem)
-    //.registerSystem(SElementBehaviorSystem)
-    //.registerSystem(SCurrentRenderSystem)
-    //.registerSystem(SLabelSystem)
-    ;
-
-}
-
-
 
 
 
@@ -298,6 +269,9 @@ class App {
     renderSystem.initXR();
 
     const interactSystem = this.world.getSystem(SInteractSystem);
+    const browserSystem = this.world.getSystem(SBrowserSystem);
+
+    browserSystem.changeGUIForXR();
 
     renderSystem.setVRButtonClickCallback(() => {
 
@@ -343,21 +317,25 @@ class App {
     const graphSystem = this.world.getSystem(SGraphSystem);
 
 
+    const left = -0.5;
+    const right = 0.7;
+
     const statsDom = renderSystem.stats.dom;
     const statsMesh = renderSystem.domElementToHTMLMesh(statsDom);
-    statsMesh.position.set(0, 0.6, 0);
+    statsMesh.position.set(left, 0.6, 0);
 
 
     const browserGUI = browserSystem.gui.domElement;
     const browserMesh = renderSystem.domElementToHTMLMesh(browserGUI);
-    browserMesh.position.set(-0.4, 0.3, 0);
+    browserMesh.position.set(left, 0.2, 0);
+    browserMesh.scale.set(1.5, 1.5, 1.5);
     browserMesh.material.side = THREE.DoubleSide;
 
     const systemGUI = this.systemGUI!.domElement;
     const systemMesh = renderSystem.domElementToHTMLMesh(systemGUI);
-    systemMesh.position.set(0.4, 0.2, 0);
+    systemMesh.position.set(right, 0.3, 0);
+    systemMesh.scale.set(1.5, 1.5, 1.5);
     systemMesh.material.side = THREE.DoubleSide;
-
 
     const group = renderSystem.interactiveGroup;
     const graphMesh = graphSystem.graph.canvasAsTexture();
@@ -368,9 +346,13 @@ class App {
     // graphMesh.material.side = THREE.DoubleSide;  
 
 
-    //dynamic GUIs needs to be handed within the system
+    const messageMesh = renderSystem.messageCanvasToTexture();
+    group.add(messageMesh);
+
+    messageMesh.position.set(0, 0.5, 0);
 
 
+    //dynamic GUIs needs to be handed within the system 
 
   }
 
@@ -385,7 +367,7 @@ class App {
     const interactSystem = this.world.getSystem(SInteractSystem);
     const graphSystem = this.world.getSystem(SGraphSystem);
     const simulateSystem = this.world.getSystem(SSimulateSystem);
-
+    const behaivorSystem = this.world.getSystem(SElementBehaviorSystem);
 
     //browser system gui:  
     const browserGUI = browserSystem.gui.domElement;
@@ -397,7 +379,6 @@ class App {
 
     //get width, height of the gui
     const browserWidth = browserGUI.clientWidth;
-
 
     const graphCanvas = graphSystem.graph.canvas;
     // graphCanvas.style.left = browserWidth + 'px'; 
@@ -411,6 +392,9 @@ class App {
     //get render system gui:
     const systemGUI = new GUI({ title: 'General' });
     this.systemGUI = systemGUI;
+
+    const systemGUIDom = systemGUI.domElement;
+    systemGUIDom.style.width = '15%';
 
 
     //new: gui that toggles views
@@ -442,9 +426,21 @@ class App {
 
     //systemGUI.add(app.timer, 'accumlatedTime').name('Time (s)').disable().listen();
 
-    systemGUI.add({ range: 1 }, 'range', 1, 10).name('Graph Range').step(1).onChange((value: number) => {
+    systemGUI.add({ range: 1 }, 'range', 0.1, 10).name('Graph Range').step(0.1).onChange((value: number) => {
       graphSystem.graph.setYRange(value);
     });
+
+
+    systemGUI.add(Globals, 'heightByPotential').name('Show Height').onChange((value: boolean) => {
+      if (value) {
+        behaivorSystem.onHeightOn();
+      } else {
+        behaivorSystem.onHeightOff();
+      }
+    });
+
+    systemGUI.add(Globals, 'showSimInfo').name('Show sim data');
+
 
     systemGUI.add(Globals, 'renderMode', ['particles', 'arrow']).name('currentRender').onChange((value: string) => {
       Globals.renderMode = value as 'particles' | 'arrow';
@@ -491,175 +487,18 @@ class App {
 
     const offset = 10;
     const propGUI = interactSystem.gui.domElement;
+    propGUI.style.width = '15%';
     propGUI.style.top = systemGUIHeight + offset + 'px';
 
   }
 
 
 
-
-
-  test() {
-    console.log("test");
-
-    //const entt = ENTT.spawnEntity2(this.world, ENTT.createWire);
-
-
-    // this.bootstrapXR();
-
-    // const renderSystem = this.world.getSystem(SRenderSystem);
-    // renderSystem.renderer.setAnimationLoop(animate);
-
-
-    // const graphSystem = this.world.getSystem(SGraphSystem);
-    // graphSystem.enabled = true;
-    // const scene = this.world.getSystem(SRenderSystem).scene;
-
-    // console.log("wire component: ", Utils.elementComponentMap['wire']);
-
-    // const myElement: Utils.ElementTypeString = 'resistor';
-    // const invalidElement: Utils.ElementTypeString = 'battery'; 
-
-
-    //const entt = ENTT.spawnEntity(this.world, ENTT.createCapacitor, new THREE.Vector3(0, 0, 0));
-
-
-    //const entt = ENTT.spawnEntity(this.world, ENTT.createInductor, new THREE.Vector3(0, 0, 0));
-
-
-    // const arrow = new Field.Arrow();
-    // arrow.mesh.rotation.z = Math.PI / 2;
-
-    // scene.add(arrow.mesh); 
-
-
-    //this.graph.drawAxies();
-
-    // console.log("keyOfTransform: ", Object.keys(COMP.CTransform));
-
-    // const dir = new THREE.Vector3(1, 0, 0); // 方向向量 (x, y, z)
-    // dir.normalize(); // 确保方向向量归一化
-
-    // const origin = new THREE.Vector3(0, 0, 0); // 箭头起点
-    // const length = 0.2; // 箭头长度
-    // const color = 0xff0000; // 箭头颜色（红色）
-
-    // // 创建 ArrowHelper
-    // const arrowHelper = new THREE.ArrowHelper(dir, origin, length, color);
-    // arrowHelper.line.visible = false; // 隐藏箭头的线
-
-    // // 添加到场景中
-    // scene.add(arrowHelper);
-    // console.log("arrowHelper: ", arrowHelper); 
-
-
-    // interface ComponentTypeMap {
-    //   CTransform: COMP.CTransform,
-    //   CResistance: COMP.CResistance,
-    // }
-
-    // const typeName = 'CTransform';
-    // const compType = COMP[typeName as keyof ComponentTypeMap];
-    // console.log("compType: ", compType);
-
-
-    // const key = 'position';
-
-    // function isMoveComponent(
-    //   comp: Component<any>
-    // ): comp is COMP.CTransform {
-    //   return comp instanceof COMP.CTransform;
-    // }
-
-
-    // const curve = new ENTT.Helix(Globals.coilRadius, Globals.tubeTurns, Globals.coilHeight);
-
-    // console.log("numeric length: ", curve.getLength());
-    // console.log("my length: ", curve.totalLength);
-
-
-
-    // //the GUI:
-    // const gui = new GUI();
-    // Utils.showPropertiesGUI(entt, gui);
-
-
-
-    // 创建一个图片元素
-    // const img = document.createElement('img');
-    // img.src = './lighting.jpg';
-    // img.style.width = '100%';
-    // img.style.height = 'auto';
-
-    //put the image to left top corner
-    // img.style.position = 'absolute';
-    // img.style.top = '0px';
-    // img.style.left = '0px';
-
-    // 添加到 DOM 中
-    //document.body.appendChild(img);
-
-
-    //
-    // const gui = new GUI({ title: 'test' });
-    // const testFoler = gui.addFolder('Custom UI');
-    // // 添加图片到 GUI
-    // testFoler.domElement.appendChild(img);
-
-    // testFoler.domElement.addEventListener('pointerdown', (event) => {
-    //   console.log("pointer down");
-    // });
-
-    // const foler2 = gui.addFolder('Custom UI2');  
-
-
-    // const test = 0.5e+9 / ((0.5 + 1.0e-9) * 1.0e+9);
-    // const testA = math.matrix([[2, -1], [-1, 1]]);
-    // const testb = math.matrix([1, 0]);
-    // const testx = math.lusolve(testA, testb);
-    // console.log("test: " + testx);
-
-    // const testA = math.matrix([[1, -1], [-1, 1]]);
-    // const testb = math.matrix([-1, 1]);
-    // const testx = math.lusolve(testA, testb);
-    // console.log("test: " + testx);
-
-    // const test = math.complex(2, 3);
-    // console.log("test: " + test.toString());
-    // //get its real part
-    // console.log("test: " + test.re);
-    // console.log("test: " + test.im);
-    // //its magnitude
-    // console.log("test: " + math.abs(test));
-    // //its phase
-    // console.log("test: " + math.arg(test));
-
-    // let expr = exp(complex(0, pi));
-    // let real = expr.re;
-    // let imag = expr.im;
-    // console.log("real: " + real);
-    // console.log("imag: " + imag);
-
-
-    // const mat1 = math.matrix([7]);
-    // console.log("matrix type: " + math.typeOf(mat1));
-
-    // const mat2 = math.matrix([2]);
-
-    // const div = math.divide(mat1, mat2);
-    // console.log("div: " + div);
-    // console.log("matrix type: " + math.typeOf(div));
-
-    // const mat3 = math.matrix([div as number]); 
-
-  }
-
 }
 
 
 const app = new App();
 app.init();
-app.test();
 
 
 // 16ms per frame (60FPS)   

@@ -68,7 +68,6 @@ export class SBrowserSystem extends System {
 
         controller.domElement.appendChild(img);
 
-
         controller.domElement.addEventListener('pointerdown', (event) => {
             this.currentFactory = _factory;
             this.onPointerdown(event);
@@ -79,6 +78,14 @@ export class SBrowserSystem extends System {
         // });
 
         this.gui.add({ spawn: () => { ENTT.spawnEntity2(this.world, _factory); } }, 'spawn').name('spawn ' + _name);
+    }
+
+
+    changeGUIForXR(): void {
+
+        this.gui.children.forEach((controller) => {
+            controller.destroy();
+        });
 
     }
 

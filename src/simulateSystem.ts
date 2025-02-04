@@ -6,6 +6,8 @@ import * as math from 'mathjs';
 
 import * as COMP from "./components";
 import * as ENTT from "./entities";
+
+import { SRenderSystem } from "./renderSystem";
 import { Globals } from "./globals";
 
 
@@ -167,6 +169,9 @@ class Subsystem {
     public slotIDs: number[] = [];
     public slotToNodes: Map<number, number[]> = new Map(); //<slotID, nodeID> 
     public gEdgeIDs: number[] = [];
+
+    //new:
+    public shorted: boolean = false;
 
     //
     private ACMap: Map<number, number[]> = new Map(); //<frequency, edgeID> 
@@ -424,6 +429,11 @@ class Subsystem {
                 return;
             }
 
+            const current = this.DCResult.edgeCurr.get([index, 0]);
+            if (current > 1.0e+6) {
+                this.shorted = true;
+            }
+
             if (entity.hasComponent(COMP.CCapacitance)) {
                 const cCapacitance = entity.getComponent(COMP.CCapacitance)!;
                 //Q = C * V
@@ -560,7 +570,7 @@ class Subsystem {
                     return;
                 }
 
-                const cNode = eNode.getMutableComponent(COMP.CNode)!;
+                const cNode = eNode.getMutableComponent(COMP.CNodeSim)!;
                 cNode.voltage = this.finalResult.nodeVolt.get([index, 0]);
 
             });
@@ -734,8 +744,12 @@ export class SSimulateSystem extends System {
     public systemManager: SystemManager | null = null;
     public running: boolean = true;
 
+
+
+    public renderSystemRef: SRenderSystem | null = null;
+
     static queries = {
-        nodes: { components: [COMP.CNode, COMP.CTransform], listen: { added: true, removed: true, changed: [COMP.CTransform] } },
+        nodes: { components: [COMP.CNode, COMP.CTransform], listen: { added: true, removed: true, changed: [COMP.CNode] } },
 
         elements: { components: [COMP.CElement, COMP.CTransform], listen: { added: true, removed: true, changed: [COMP.CTransform] } },
 
@@ -751,18 +765,18 @@ export class SSimulateSystem extends System {
 
     init(): void {
         console.log("init simulate system");
+
+        this.renderSystemRef = this.world.getSystem(SRenderSystem);
     }
 
 
     isTopoChanged(): boolean {
 
         const changed =
-            this.queries.elements.added!.length > 0 ||
-            this.queries.elements.removed!.length > 0 ||
-            this.queries.elements.changed!.length > 0 ||
             this.queries.nodes.added!.length > 0 ||
             this.queries.nodes.removed!.length > 0 ||
             this.queries.nodes.changed!.length > 0;
+
 
         return changed;
     }
@@ -792,7 +806,7 @@ export class SSimulateSystem extends System {
             const elementNum = this.queries.elements.results.length;
             const nodeNum = this.queries.nodes.results.length;
 
-            //console.warn("simulate at:" + time, "topo changed: rebuild subsystems");
+            // console.warn("simulate at:" + time, "topo changed: rebuild subsystems");
             // console.log("total element num: " + elementNum + " total node num: " + nodeNum);
 
             this.systemManager.subsystems.forEach(subsystem => {
@@ -814,18 +828,33 @@ export class SSimulateSystem extends System {
             //new: init the subsystems
             this.systemManager.subsystems.forEach(subsystem => {
                 subsystem.executeAC();
+                console.log("simulate: rebuild AC");
             });
         }
 
+        let bShorted = false;
         if (this.systemManager && this.running) {
             // this.showDebugGUI();  
             for (const [key, system] of this.systemManager.subsystems) {
                 //console.log("simuate: execute delta: " + delta); 
                 system.update(delta, time);
+
+                if (system.shorted) {
+                    bShorted = true;
+                }
+
             }
         }
 
+        //new: if shorted, stop simulation
+        if (bShorted) {
+            this.renderSystemRef!.updateMessage("Shorted!");
+        }
+        else {
+            this.renderSystemRef!.updateMessage("");
+        }
     }
 
-
 }
+
+

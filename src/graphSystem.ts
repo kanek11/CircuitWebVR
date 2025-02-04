@@ -69,6 +69,19 @@ export class Graph2 {
         // this.canvas.style.width = '50%';
         // this.canvas.style.height = '25%';
 
+        this.canvas.style.backgroundColor = "black";
+        this.canvas.style.position = "absolute";
+        this.canvas.style.zIndex = "2";
+
+        document.body.appendChild(this.canvas);
+
+        const ctx = this.canvas.getContext("2d");
+        if (!ctx) {
+            throw new Error("Canvas context is not available");
+        }
+
+
+
         this.width = window.innerWidth * 0.5;
         this.height = window.innerHeight * 0.25;
         this.canvas.width = this.width;
@@ -82,18 +95,7 @@ export class Graph2 {
 
         //console.log("graph: width: ", this.width, "height: ", this.height);
 
-        this.canvas.style.backgroundColor = "black";
-        this.canvas.style.position = "absolute";
-        this.canvas.style.zIndex = "2";
 
-
-        document.body.appendChild(this.canvas);
-
-
-        const ctx = this.canvas.getContext("2d");
-        if (!ctx) {
-            throw new Error("Canvas context is not available");
-        }
     }
 
 

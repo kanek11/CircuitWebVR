@@ -71,7 +71,15 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
 
     let entityName = 'Entity';
     if (entity.hasComponent(COMP.CElementMetaInfo)) {
-        entityName = entity.getComponent(COMP.CElementMetaInfo)!.name
+        entityName = entity.getComponent(COMP.CElementMetaInfo)!.name;
+    }
+    else {
+        console.warn("GUI: not an element entity");
+
+        if (!Globals.debugMode) {
+            return;
+        }
+
     }
 
 
@@ -94,8 +102,6 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
         if (typeName === 'CLabel3D') {
             return;
         }
-
-
 
 
         //get schema, static member of the type 

@@ -105,11 +105,6 @@ export type ComponentSchemaProp_String = ComponentSchemaProp & {
 // };
 
 
-
-// export class CRenderable extends Component<CRenderable> {
-// }
-
-
 // Transform component to store position and rotation
 export class CTransform extends Component<CTransform> {
     position!: THREE.Vector3;
@@ -201,22 +196,28 @@ export class CNode extends Component<CNode> {
     element!: Entity;
     other!: Entity;  //needed for deriving temp distance for interactions
     slotID!: number;
-    voltage!: number;
-    moveable!: boolean;
-    globalID!: number;
     static schema = {
         element: { type: Types.Ref, default: null },
         other: { type: Types.Ref, default: null },
         slotID: { type: Types.Number, default: INVALID_SLOT, readonly: true },
-        voltage: { type: Types.Number, default: 0, readonly: true },
-        moveable: { type: Types.Boolean, default: false },
-        globalID: { type: Types.Number, default: -1, readonly: true },
     };
 
     dispose(): void {
         //see the reference as weak
     }
 }
+
+export class CNodeSim extends Component<CNodeSim> {
+    voltage!: number;
+    static schema = {
+        voltage: { type: Types.Number, default: 0, readonly: true, monitorable: true },
+    };
+
+    dispose(): void {
+    }
+}
+
+
 
 export class CResistance extends Component<CResistance> {
     resistance!: number;
@@ -231,7 +232,8 @@ export class CResistance extends Component<CResistance> {
     * heat loss = I^2 * R * dt
     */
     updateHeat(current: number, dt: number): void {
-        this.heat += this.resistance * current * current * dt;
+        const currentAbs = Math.abs(current);
+        this.heat += this.resistance * currentAbs * currentAbs * dt;
     }
 
     dispose(): void {
@@ -278,7 +280,7 @@ export class CInductance extends Component<CInductance> {
     helix!: Helix | null;
 
     static schema = {
-        inductance: { type: Types.Number, default: 1, readonly: true },
+        inductance: { type: Types.Number, default: 1, readonly: true, monitorable: true },
         turns: { type: Types.Number, default: 1, min: 3, max: 10, step: 1 },
         radius: { type: Types.Number, default: 1, min: 0.02, max: 0.05, step: 0.01 },
         area: { type: Types.Number, default: 1, readonly: true },
@@ -327,7 +329,7 @@ export class CCapacitance extends Component<CCapacitance> {
     field!: Field.EField | null;
 
     static schema = {
-        capacitance: { type: Types.Number, default: 1, readonly: true },
+        capacitance: { type: Types.Number, default: 1, readonly: true, monitorable: true },
         spacing: { type: Types.Number, default: 1, min: 0.02, max: 0.1 },
         edge: { type: Types.Number, default: 1, min: 0.02, max: 0.2 },
         constant: { type: Types.Number, default: 0.1 },

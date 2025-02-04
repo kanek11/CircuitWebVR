@@ -45,7 +45,7 @@ export class Arrow {
 
         //merge the two geometries:
         const mergedGeometry = mergeGeometries([bodyGeometry, coneGeometry]);
-        const material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true });
+        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
         this.mesh = new THREE.Mesh(mergedGeometry, material);
         this.mesh.raycast = () => { /* no-op */ };
@@ -131,7 +131,7 @@ export class EField {
             line.computeLineDistances(); // 计算线段距离，确保正确渲染
 
             const arrow = new Arrow().mesh;
-            arrow.name = "EFieldArrow_" + index;
+            (arrow.material as THREE.MeshBasicMaterial).transparent = true;
             arrow.rotation.z = Math.PI / 2;
 
             this.fieldLines.push(line);
@@ -189,14 +189,10 @@ export class EField {
         const size = cCapacitance.spacing;
         const charge = cCapacitance.charge;
 
-        //we think rebuild field is too heavy for now
-        // if (this.currentChargeLevel != this.chargeToDensityLevel(charge)) {
-        //     this.currentChargeLevel = this.chargeToDensityLevel(charge);
-        //     this.onChargeDensityChange();
-        // }
 
+        const voltage = Math.round(cElement.voltage * 100) / 100;
         //flip
-        let intensity = Math.abs(cElement.voltage) / Globals.capacitorFieldRange;
+        let intensity = Math.abs(voltage) / Globals.capacitorFieldRange;
         let dir = charge >= 0 ? 1 : -1;
 
         this.fieldGroup.scale.x = size;
@@ -391,6 +387,7 @@ export class BField {
                 //new: spawn arrows
                 if (j == numSegments - excludedNum / 2 - 1 || j == excludedNum / 2 + 1) {
                     const arrow = new Arrow().mesh;
+                    (arrow.material as THREE.MeshBasicMaterial).transparent = true;
                     this.arrows.push(arrow);
                     this.arrowGroup.add(arrow);
 
@@ -442,7 +439,8 @@ export class BField {
         const cInductance = entity.getComponent(COMP.CInductance)!;
         const cElement = entity.getComponent(COMP.CElement)!;
 
-        const intensity = Math.abs(cElement.current) / Globals.inductorFieldRange;
+        const current = Math.round(cElement.current * 100) / 100;
+        const intensity = Math.abs(current) / Globals.inductorFieldRange;
 
         this.fieldLines.forEach((line) => {
             const material = line.material as LineMaterial;

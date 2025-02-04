@@ -399,8 +399,12 @@ function wireMeshFactory(world: World): THREE.Mesh {
     const wireMesh = new THREE.Mesh(geometry, material);
     //rotate it to lay down;
 
+    //wireMesh.castShadow = true;
+
     wireMesh.scale.set(Globals.wireRadius, 1, Globals.wireRadius);
     wireMesh.rotation.z = Math.PI / 2;
+
+
 
     return wireMesh;
 }
@@ -408,21 +412,20 @@ function wireMeshFactory(world: World): THREE.Mesh {
 
 export interface IWireParams {
 }
-
 export const createWire: EntityFactory2<IWireParams> = (world: World, params: IWireParams = {}): Entity => {
     const entity = createElement(world);
     entity.addComponent(COMP.CWire);
     entity.addComponent(COMP.CElementMetaInfo, { elementType: "wire", name: generateUniqueName('wire') });
 
-    const wireLMesh = wireMeshFactory(world);
-    wireLMesh.name = "wireL";
+    const wireMeshL = wireMeshFactory(world);
+    wireMeshL.name = "wireL";
 
-    const wireRMesh = wireMeshFactory(world);
-    wireRMesh.name = "wireR";
+    const wireMeshR = wireMeshFactory(world);
+    wireMeshR.name = "wireR";
 
     const group = entity.getComponent(COMP.CObject3D)!.group as THREE.Group;
-    group.add(wireLMesh);
-    group.add(wireRMesh);
+    group.add(wireMeshL);
+    group.add(wireMeshR);
 
     return entity;
 }
@@ -471,8 +474,11 @@ export const createElement = (world: World): Entity => {
     const _nodeL = node('nodeL', 'nodeGroupL');
     const _nodeR = node('nodeR', 'nodeGroupR');
 
-    _nodeL.addComponent(COMP.CNode, { element: entity, other: _nodeR, moveable: true });
-    _nodeR.addComponent(COMP.CNode, { element: entity, other: _nodeL, moveable: true });
+    _nodeL.addComponent(COMP.CNode, { element: entity, other: _nodeR });
+    _nodeR.addComponent(COMP.CNode, { element: entity, other: _nodeL });
+
+    _nodeL.addComponent(COMP.CNodeSim);
+    _nodeR.addComponent(COMP.CNodeSim);
 
     entity.addComponent(COMP.CElement, { nodeL: _nodeL, nodeR: _nodeR });
 
@@ -485,7 +491,7 @@ export const createElement = (world: World): Entity => {
 
 export function OnNodesChange(element: Entity): void {
     if (!element.hasComponent(COMP.CElement)) {
-        console.error("nodeChange: sync for not a element!");
+        console.error("nodeChange: not a element!");
         return;
     }
 
@@ -530,17 +536,41 @@ export function syncElementTransform(element: Entity): void {
     const cElement = element.getMutableComponent(COMP.CElement)!;
     const cTransform = element.getMutableComponent(COMP.CTransform)!;
 
-    const termL = cElement.nodeL.getComponent(COMP.CTransform)!.position;
-    const termR = cElement.nodeR.getComponent(COMP.CTransform)!.position;
+    const nodePosL = cElement.nodeL.getComponent(COMP.CTransform)!.position;
+    const nodePosR = cElement.nodeR.getComponent(COMP.CTransform)!.position;
 
-    cTransform.position = new Vector3().addVectors(termL, termR).multiplyScalar(0.5);
+    //new:
+    const nodeVoltL = cElement.nodeL.getComponent(COMP.CNodeSim)!.voltage;
+    const nodeVoltR = cElement.nodeR.getComponent(COMP.CNodeSim)!.voltage;
 
-    const offset = new Vector3().subVectors(termR, termL);
-    cElement.length = offset.length();
+    if (Globals.heightByPotential) {
+        nodePosL.y = (nodeVoltL - Globals.potentialOffset) * Globals.potentialScale;
+        nodePosR.y = (nodeVoltR - Globals.potentialOffset) * Globals.potentialScale;
+    }
+    else {
+        nodePosL.y = 0;
+        nodePosR.y = 0;
+    }
+
+
+    cTransform.position = new Vector3().addVectors(nodePosL, nodePosR).multiplyScalar(0.5);
+
+    const offset = new Vector3().subVectors(nodePosR, nodePosL);
+
+
+    if (Globals.heightByPotential) {
+        const angleZ = Math.atan2(offset.y, Math.hypot(offset.x, offset.z));
+        cTransform.rotation.z = -angleZ;
+    }
+    else {
+        cTransform.rotation.z = 0;
+    }
 
     const angleY = Math.atan2(offset.z, -offset.x);
     cTransform.rotation.y = angleY;
 
+    //new: update the length of the element
+    cElement.length = offset.length();
 }
 
 
@@ -584,6 +614,7 @@ export function syncResistorModel(element: Entity, elementChanged: boolean = fal
     //syncWireModels(element, size / 2, -size / 2, 0.1, length);
     syncWireModel(wireMeshL, Dir.LEFT * length / 2, Dir.LEFT * size / 2);
     syncWireModel(wireMeshR, Dir.RIGHT * size / 2, Dir.RIGHT * length / 2);
+
 
     //console.log("sync resistor model");
 

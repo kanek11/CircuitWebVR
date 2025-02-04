@@ -39,7 +39,7 @@ import { Globals } from "./globals";
 export type ViewMode = "3D" | "top" | "VR";
 
 export class SRenderSystem extends System {
-    public renderer: WebGLRenderer = new THREE.WebGLRenderer();
+    public renderer: WebGLRenderer = new THREE.WebGLRenderer({ antialias: true });
 
     //it needs correct resolution, so init is delayed  
 
@@ -65,6 +65,11 @@ export class SRenderSystem extends System {
     public handPointers: OculusHandPointerModel[] = [];
 
     public vrButton: HTMLElement | null = null;
+
+    public messageMesh: THREE.Mesh | null = null;
+    public messageCanvas: HTMLCanvasElement | null = null;
+    public messageTexture: THREE.Texture | null = null;
+
 
 
     static queries = {
@@ -208,14 +213,11 @@ export class SRenderSystem extends System {
         this.cameraControl = new OrbitControls(this.main_camera, this.renderer.domElement);
         // 限制相机的旋转角度，防止 sink into y < 0
         this.cameraControl.maxPolarAngle = Math.PI / 2; // 限制最大仰角，90度即水平
-        this.cameraControl.minPolarAngle = 0; // 最大允许从上方俯视
+        this.cameraControl.minPolarAngle = 0; // 最大允许从上方俯视 
 
-
-        //
-        //this.loadEnvMap(); 
 
         const debugRoom = new THREE.LineSegments(
-            new BoxLineGeometry(6, 6, 6, 10, 10, 10).translate(0, 3, 0),
+            new BoxLineGeometry(6, 6, 6, 10, 10, 10).translate(0, 2.9, 0),
             new THREE.LineBasicMaterial({ color: 0xbcbcbc })
         );
         debugRoom.name = "debugRoom";
@@ -225,6 +227,11 @@ export class SRenderSystem extends System {
         this.scene.add(debugRoom);
 
 
+        //
+        //this.loadEnvMap(); 
+
+        this.createMessagePrompt("test");
+        this.updateMessage("test");
     }
 
 
@@ -473,6 +480,57 @@ export class SRenderSystem extends System {
         return mesh;
 
     }
+
+
+    createMessagePrompt(message: string): void {
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        canvas.style.position = "absolute";
+        canvas.style.top = "90%";
+        canvas.style.left = "50%";
+        canvas.style.transform = "translate(-50%, -50%)";
+        canvas.style.zIndex = "2";
+
+        document.body.appendChild(canvas);
+
+        this.messageCanvas = canvas;
+
+    }
+
+    updateMessage(message: string): void {
+
+
+        const ctx = this.messageCanvas!.getContext('2d')!;
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = 'red';
+        ctx.font = '24px Arial';
+        ctx.fillText(message, 10, 50);
+
+        //console.log("update message: ", message);
+
+        if (this.messageTexture !== null) {
+            this.messageTexture.needsUpdate = true;
+        }
+
+    }
+
+    messageCanvasToTexture(): THREE.Mesh {
+
+
+        const texture = new THREE.CanvasTexture(this.messageCanvas!);
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+
+        const geometry = new THREE.PlaneGeometry(0.2, 0.1);
+        const mesh = new THREE.Mesh(geometry, material);
+
+        this.messageMesh = mesh;
+        this.messageTexture = texture;
+
+        return mesh;
+    }
+
 
 }
 

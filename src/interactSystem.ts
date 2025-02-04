@@ -7,7 +7,6 @@ import { HTMLMesh } from 'three/examples/jsm/interactive/HTMLMesh.js';
 import * as COMP from "./components";
 import * as ENTT from "./entities";
 import { SRenderSystem } from "./renderSystem";
-import { SBrowserSystem } from "./browserSystem";
 
 import { Globals } from "./globals";
 import * as Utils from "./utils";
@@ -35,6 +34,7 @@ export const createGrid = (world: World, gridSize: number, gridNum: number) => {
     grid.name = "grid";
     //disable raycast
     grid.raycast = () => [];
+    grid.renderOrder = Globals.gridRenderOrder;
 
     world.getSystem(SRenderSystem).addToSupportGroup(grid);
 
@@ -45,7 +45,9 @@ export const createGrid = (world: World, gridSize: number, gridNum: number) => {
     );
 
     //for now, depend on node size
+    table.receiveShadow = true;
     table.name = "table";
+    table.renderOrder = Globals.tableRenderOrder;
     table.raycast = () => [];
 
     table.position.y = -0.05 - 0.0125;
@@ -319,11 +321,6 @@ export class SInteractSystem extends System {
             //new: skip if the node is not movable 
 
             const cThisNode = entity.getComponent(COMP.CNode)!;
-            if (!cThisNode.moveable) {
-                console.log("interact: node not movable");
-                return;
-            }
-
 
             const cElement = cThisNode.element.getComponent(COMP.CElement)!;
             const size = cElement.elementSize;
@@ -404,12 +401,12 @@ export class SInteractSystem extends System {
     }
 
     deClick(): void {
-        if (!this.dynamicFolder) {
-            return;
-        }
-        this.dynamicFolder.domElement.dispatchEvent(new CustomEvent('destroy'));
-        this.dynamicFolder.destroy();
-        this.dynamicFolder = null;
+        // if (!this.dynamicFolder) {
+        //     return;
+        // }
+        // this.dynamicFolder.domElement.dispatchEvent(new CustomEvent('destroy'));
+        // this.dynamicFolder.destroy();
+        // this.dynamicFolder = null;
     }
 
 
@@ -562,7 +559,7 @@ export class SXRInteractSystemL extends SInteractSystem {
             });
 
             this.guiMesh = this.renderSystemRef!.domElementToHTMLMesh(this.dynamicFolder!.domElement);
-            this.guiMesh.position.set(0.7, 0.4, 0);
+            this.guiMesh.position.set(0.4, 0.3, 0);
             this.guiMesh.material.side = THREE.DoubleSide;
 
             console.log("interact:update prop mesh");

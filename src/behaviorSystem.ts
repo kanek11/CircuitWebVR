@@ -34,13 +34,14 @@ export class SElementBehaviorSystem extends System {
     static queries = {
 
         elements: { components: [COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CElement] } },
+        nodes: { components: [COMP.CNode, COMP.CNodeSim], listen: { added: true, removed: true, changed: [COMP.CNodeSim] } },
 
-        resistors: { components: [COMP.CResistance], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
-        inductors: { components: [COMP.CInductance], listen: { added: true, removed: true, changed: [COMP.CInductance] } },
-        capacitors: { components: [COMP.CCapacitance], listen: { added: true, removed: true, changed: [COMP.CCapacitance] } },
+        resistors: { components: [COMP.CResistance, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
+        inductors: { components: [COMP.CInductance, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CInductance] } },
+        capacitors: { components: [COMP.CCapacitance, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CCapacitance] } },
 
-        DCVoltages: { components: [COMP.CDCVoltage], listen: { added: true, removed: true, changed: [COMP.CDCVoltage] } },
-        ACVoltages: { components: [COMP.CACVoltage], listen: { added: true, removed: true, changed: [COMP.CACVoltage] } },
+        DCVoltages: { components: [COMP.CDCVoltage, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CDCVoltage] } },
+        ACVoltages: { components: [COMP.CACVoltage, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CACVoltage] } },
 
     };
 
@@ -48,9 +49,43 @@ export class SElementBehaviorSystem extends System {
         console.log("init element behavior system");
     }
 
+    onHeightOff() {
+        this.queries.nodes.results.forEach(entity => {
+            const cNode = entity.getComponent(COMP.CNode)!;
+            const cElement = cNode.element;
+
+            ENTT.OnNodesChange(cElement);
+        });
+    }
+
+    onHeightOn() {
+
+        this.queries.nodes.results.forEach(entity => {
+            const cNode = entity.getComponent(COMP.CNode)!;
+            const cElement = cNode.element;
+
+            ENTT.OnNodesChange(cElement);
+        });
+    }
+
     execute(delta: number, time: number): void {
 
         const scene = this.world.getSystem(SRenderSystem).scene;
+
+
+        if (Globals.heightByPotential) {
+            this.queries.nodes.changed!.forEach(entity => {
+
+                const cNode = entity.getComponent(COMP.CNode)!;
+                const cElement = cNode.element;
+
+                ENTT.OnNodesChange(cElement);
+
+                //console.log("trigger node changed: " + entity.id);
+            });
+        }
+
+
 
         this.queries.inductors.added!.forEach(entity => {
 
@@ -84,6 +119,22 @@ export class SElementBehaviorSystem extends System {
 
             const cCapacitance = entity.getMutableComponent(COMP.CCapacitance)!;
             cCapacitance.field = field;
+        });
+
+
+
+
+        this.queries.resistors.results.forEach(entity => {
+            if (!entity.alive) {
+                console.error("entity is not alive");
+                return;
+            }
+
+            const cResistance = entity.getMutableComponent(COMP.CResistance)!;
+            const cElement = entity.getMutableComponent(COMP.CElement)!;
+
+            cResistance.updateHeat(cElement.current, delta);
+
         });
 
 
@@ -208,11 +259,14 @@ class particlePool {
 
 
 
-    getParticle(mode: RenderMode): THREE.Mesh {
+    getParticle(mode: RenderMode = Globals.renderMode): THREE.Mesh {
 
-        let pool = this.particlePool;
+        let pool: THREE.Mesh[];
         if (mode === 'arrow') {
             pool = this.arrowPool;
+        }
+        else {
+            pool = this.particlePool;
         }
 
         for (const particle of pool) {
@@ -221,27 +275,50 @@ class particlePool {
                 return particle;
             }
         }
-        console.warn("pool:expand the pool");
+        console.warn("pool: expand pool : " + pool.length);
         this.expandPool(100);
         return this.getParticle(mode);
     }
 
 
     releaseGroup(group: THREE.Group) {
+        // console.log("current pool size: " + this.particlePool.length);
+        // console.log("to release group size: " + group.children.length);
+
         group.children.forEach((child) => {
             child.userData.isFree = true;
             child.position.set(0, 0, 0);
-            this.particlePool.push(child as THREE.Mesh);
         });
         group.clear();
-    }
 
+    }
 
 }
 
 
 export class SCurrentRenderSystem extends System {
     public running = true;
+
+    private spacing = 0.05;
+    private speedScale = 0.02;
+
+    private particlePool = new particlePool(Globals.particlePoolSize);
+
+    private groupMap: Map<number, THREE.Group> = new Map(); //<id, group>
+
+    static queries = {
+
+        resistors: { components: [COMP.CResistance], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
+        voltages: { components: [COMP.CDCVoltage], listen: { added: true, removed: true, changed: [COMP.CDCVoltage] } },
+        ACVoltages: { components: [COMP.CACVoltage], listen: { added: true, removed: true, changed: [COMP.CACVoltage] } },
+        inductors: { components: [COMP.CInductance], listen: { added: true, removed: true, changed: [COMP.CInductance] } },
+        capacitors: { components: [COMP.CCapacitance], listen: { added: true, removed: true, changed: [COMP.CCapacitance] } },
+
+        elements: { components: [COMP.CElement, COMP.CTransform], listen: { added: true, removed: true, changed: [COMP.CTransform] } },
+        nodes: { components: [COMP.CNode], listen: { added: true, removed: true, changed: [COMP.CNode] } },
+    };
+
+
 
     onModeChange(mode: RenderMode) {
         //dump old particles
@@ -258,29 +335,6 @@ export class SCurrentRenderSystem extends System {
             this.spawnParticles(entity, particles);
         });
     }
-
-    private spacing = 0.05;
-    private speedScale = 0.01;
-
-    private particlePool = new particlePool(Globals.particlePoolSize);
-
-    private groupMap: Map<number, THREE.Group> = new Map(); //<id, group>
-
-    static queries = {
-
-        resistors: { components: [COMP.CResistance], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
-        voltages: { components: [COMP.CDCVoltage], listen: { added: true, removed: true, changed: [COMP.CDCVoltage] } },
-        ACVoltages: { components: [COMP.CACVoltage], listen: { added: true, removed: true, changed: [COMP.CACVoltage] } },
-        inductors: { components: [COMP.CInductance], listen: { added: true, removed: true, changed: [COMP.CInductance] } },
-        capacitors: { components: [COMP.CCapacitance], listen: { added: true, removed: true, changed: [COMP.CCapacitance] } },
-
-        elements: {
-            components: [COMP.CElement, COMP.CTransform],
-            listen: {
-                added: true, removed: true, changed: [COMP.CTransform]
-            }
-        },
-    };
 
     init(): void {
         console.log("init current render system");
@@ -302,6 +356,8 @@ export class SCurrentRenderSystem extends System {
             cObject.group.add(particles);
             this.groupMap.set(entity.id, particles);
 
+            this.spawnParticles(entity, particles);
+
         });
 
         this.queries.elements.removed!.forEach(entity => {
@@ -318,21 +374,25 @@ export class SCurrentRenderSystem extends System {
             }
         });
 
-        //new: now narrowd down transform changed as node changed
-        this.queries.elements.changed!.forEach(entity => {
-            if (!entity.alive) {
-                console.error("entity is not alive: " + entity.id + "/time: " + time);
-                return;
-            }
+        //new: now narrowd down transform changed as node changed;
+        //new: skip update particles if height is driven by potential
+        if (!Globals.heightByPotential) {
+            this.queries.elements.changed!.forEach(entity => {
+                if (!entity.alive) {
+                    console.error("entity is not alive: " + entity.id + "/time: " + time);
+                    return;
+                }
 
-            //remove old particles if any  
-            const cObject = entity.getComponent(COMP.CObject3D)!;
-            const particles = cObject.group.getObjectByName("particleGroup") as THREE.Group;
-            if (particles) { this.particlePool.releaseGroup(particles); }
+                //remove old particles if any  
+                const cObject = entity.getComponent(COMP.CObject3D)!;
+                const particles = cObject.group.getObjectByName("particleGroup") as THREE.Group;
+                if (particles) { this.particlePool.releaseGroup(particles); }
 
-            this.spawnParticles(entity, particles);
-            //console.log("respawn particles: " + particles.children.length);
-        });
+                this.spawnParticles(entity, particles);
+
+                console.log("respawn particles: " + particles.children.length);
+            });
+        }
 
 
         this.queries.capacitors.added!.forEach(entity => {
@@ -371,6 +431,8 @@ export class SCurrentRenderSystem extends System {
 
 
     updateCharges(entity: Entity) {
+
+        const cElement = entity.getComponent(COMP.CElement)!;
         const cCapacitance = entity.getComponent(COMP.CCapacitance)!;
         const charge = cCapacitance.charge;
         const edge = cCapacitance.edge;
@@ -380,7 +442,11 @@ export class SCurrentRenderSystem extends System {
         this.particlePool.releaseGroup(chargeGroup);
 
         //spawn particles based on charge density;
-        const chargeNumX = Math.ceil(Math.abs(charge));
+        let chargeNumX = Math.ceil(Math.abs(cElement.voltage) * Globals.capactiorChargeDensity);
+        //new: cap the number of charges; todo: don't hard code
+        if (chargeNumX > 10) chargeNumX = 10;
+
+
         const spacing = edge / (chargeNumX - 1);
 
         const offsetX = ENTT.Dir.LEFT * size / 2 * Math.sign(charge);
@@ -388,13 +454,19 @@ export class SCurrentRenderSystem extends System {
 
         for (let i = 0; i < chargeNumX; i++) {
             for (let j = 0; j < chargeNumX; j++) {
+                const x = offsetX;
+                const y = i * spacing + offsetYZ;
+                const z = j * spacing + offsetYZ;
+
                 const particle = this.particlePool.getParticle('particles');
-                particle.position.x = offsetX;
-                particle.position.y = i * spacing + offsetYZ;
-                particle.position.z = j * spacing + offsetYZ;
+                particle.position.set(x, y, z);
                 chargeGroup.add(particle);
+
+
             }
         }
+
+        //console.log("update charges: " + chargeGroup.children.length);
 
     }
 
@@ -415,7 +487,8 @@ export class SCurrentRenderSystem extends System {
             const size = cElement.elementSize;
             const length = cElement.length;
 
-            const current = cElement.current;
+            let current = cElement.current;
+            current = Math.round(current * 100) / 100;
 
             const group = element.getComponent(COMP.CObject3D)!.group as THREE.Group;
             const particles = group.getObjectByName("particleGroup") as THREE.Group;
@@ -430,11 +503,18 @@ export class SCurrentRenderSystem extends System {
                 const pos = ptcMesh.position;
                 let dist = delta * this.speedScale * current;
 
+                // console.log("current: " + current + " dist: " + dist);
+
+                if (Globals.renderMode === 'particles') {
+                    dist *= -1.0;
+                }
+
                 if (abs(dist) < 1e-6) {
                     dist = 0;  //prevent numerical jitter
                     Field.pointArrowToDir(ptcMesh as THREE.Mesh, new THREE.Vector3(0, 1.0, 0));
                     //particles.visible = false;
                     //return;
+                    //console.log("dist is set zero");
                 }
                 else {
                     Field.pointArrowToDir(ptcMesh as THREE.Mesh, new THREE.Vector3(dist, 0, 0));
@@ -471,7 +551,6 @@ export class SCurrentRenderSystem extends System {
 
                     }
                     else {
-
                         ptcMesh.visible = false;
 
                         pos.x += dist;
@@ -572,14 +651,16 @@ export class SCurrentRenderSystem extends System {
                 return;
             }
 
-            const voltL = element.getComponent(COMP.CElement)!.nodeL.getComponent(COMP.CNode)!.voltage;
-            const voltR = element.getComponent(COMP.CElement)!.nodeR.getComponent(COMP.CNode)!.voltage;
+            const voltL = element.getComponent(COMP.CElement)!.nodeL.getComponent(COMP.CNodeSim)!.voltage;
+            const voltR = element.getComponent(COMP.CElement)!.nodeR.getComponent(COMP.CNodeSim)!.voltage;
 
             minVoltage = Math.min(minVoltage, voltL, voltR);
             maxVoltage = Math.max(maxVoltage, voltL, voltR);
         });
         maxVoltage += 1e-6; //avoid division by zero
-
+        if (minVoltage < Globals.potentialOffset) {
+            Globals.potentialOffset = minVoltage;
+        }
         //console.log("minVoltage: " + minVoltage + " maxVoltage: " + maxVoltage);
 
 
@@ -602,11 +683,11 @@ export class SCurrentRenderSystem extends System {
             const nodeL = element.getComponent(COMP.CElement)!.nodeL;
             const nodeR = element.getComponent(COMP.CElement)!.nodeR;
 
-            const voltageL = nodeL.getComponent(COMP.CNode)!.voltage;
-            const voltageR = nodeR.getComponent(COMP.CNode)!.voltage;
+            const voltageL = nodeL.getComponent(COMP.CNodeSim)!.voltage;
+            const voltageR = nodeR.getComponent(COMP.CNodeSim)!.voltage;
 
-            let colorL: THREE.Color = colorMap(voltageL, minVoltage, maxVoltage);
-            let colorR: THREE.Color = colorMap(voltageR, minVoltage, maxVoltage);
+            const colorL: THREE.Color = colorMap(voltageL, minVoltage, maxVoltage);
+            const colorR: THREE.Color = colorMap(voltageR, minVoltage, maxVoltage);
 
             (wireLMesh.material as THREE.MeshStandardMaterial).color.set(colorL);
             (wireRMesh.material as THREE.MeshStandardMaterial).color.set(colorR);
@@ -640,12 +721,6 @@ export class SCurrentRenderSystem extends System {
                 (plateMeshR.material as THREE.MeshStandardMaterial).color.set(colorR);
             }
 
-            if (element.hasComponent(COMP.CInductance)) {
-                // const cInductance = element.getComponent(COMP.CInductance)!;
-
-                // const coilMesh = cObject.group.getObjectByName("coil") as THREE.Mesh;
-                // (coilMesh.material as THREE.MeshStandardMaterial).color.set(colorL);
-            }
 
             if (element.hasComponent(COMP.CDCVoltage)) {
                 const plateMeshL = cObject.group.getObjectByName("plateL") as THREE.Mesh;
@@ -654,6 +729,13 @@ export class SCurrentRenderSystem extends System {
                 (plateMeshL.material as THREE.MeshStandardMaterial).color.set(colorL);
                 (plateMeshR.material as THREE.MeshStandardMaterial).color.set(colorR);
 
+            }
+
+            if (element.hasComponent(COMP.CInductance)) {
+                // const cInductance = element.getComponent(COMP.CInductance)!;
+
+                // const coilMesh = cObject.group.getObjectByName("coil") as THREE.Mesh;
+                // (coilMesh.material as THREE.MeshStandardMaterial).color.set(colorL);
             }
 
             if (element.hasComponent(COMP.CResistance)) {

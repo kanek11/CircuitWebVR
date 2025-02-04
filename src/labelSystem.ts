@@ -30,10 +30,7 @@ import { Globals } from "./globals";
 export class SLabelSystem extends System {
 
     static queries = {
-        labels: {
-            components: [COMP.CLabel3D],
-            listen: { added: true, removed: true, changed: [COMP.CLabel3D] }
-        },
+        labels: { components: [COMP.CLabel3D], listen: { added: true, removed: true, changed: [COMP.CLabel3D] } },
 
         elements: { components: [COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CElement] } },
         resistors: { components: [COMP.CResistance], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
@@ -48,7 +45,6 @@ export class SLabelSystem extends System {
     }
 
     execute(delta: number, elapsed: number): void {
-
 
         this.queries.elements.added!.forEach(entity => {
             entity.addComponent(COMP.CLabel3D, { text: '', });
@@ -99,7 +95,7 @@ export class SLabelSystem extends System {
         this.queries.resistors.results.forEach(entity => {
             const resistor = entity.getComponent(COMP.CResistance)!;
             const label = entity.getMutableComponent(COMP.CLabel3D)!;
-            label.text = `${resistor.resistance.toFixed(2)}R`;
+            label.text = `${resistor.resistance.toFixed(2)}Ω`;
 
         });
 
@@ -113,6 +109,7 @@ export class SLabelSystem extends System {
             const inductor = entity.getMutableComponent(COMP.CInductance)!;
             const label = entity.getMutableComponent(COMP.CLabel3D)!;
             label.text = `${inductor.inductance.toFixed(2)}H`;
+            label.text += `\nLI²/2=${inductor.energy.toFixed(2)}J`;
         });
 
 
@@ -120,19 +117,20 @@ export class SLabelSystem extends System {
             const capacitor = entity.getMutableComponent(COMP.CCapacitance)!;
             const label = entity.getMutableComponent(COMP.CLabel3D)!;
             label.text = `${capacitor.capacitance.toFixed(2)}F`;
+            label.text += `\nCV²/2=${capacitor.energy.toFixed(2)}J`;
         });
+
 
 
         this.queries.labels.results.forEach(entity => {
             const cLabel = entity.getMutableComponent(COMP.CLabel3D)!;
 
-            const element = entity.getComponent(COMP.CElement)!;
+            const cElement = entity.getComponent(COMP.CElement)!;
             //some elements has no label
-            if (cLabel) {
-                //append to the label text 
-                //current:
-                cLabel.text += `\n${Math.abs(element.current).toFixed(2)}A`;
-                cLabel.text += `\n${Math.abs(element.voltage).toFixed(2)}Vd`;
+            if (Globals.showSimInfo) {
+                //append to the label text  
+                cLabel.text += `\nV/R=${Math.abs(cElement.current).toFixed(2)}A`;
+                cLabel.text += `\nVd=${Math.abs(cElement.voltage).toFixed(2)}V`;
 
             }
 
@@ -144,6 +142,7 @@ export class SLabelSystem extends System {
             cLabel.sprite.material.map!.needsUpdate = true;
 
         });
+
 
     }
 

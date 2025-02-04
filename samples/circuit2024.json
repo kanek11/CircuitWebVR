@@ -1,64 +1,6 @@
 {
   "entities": [
     {
-      "id": 99,
-      "elementType": "entity",
-      "components": [
-        {
-          "type": "CTransform",
-          "data": {
-            "position": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "type": "CObject3D",
-          "data": {}
-        },
-        {
-          "type": "CElementMetaInfo",
-          "data": {
-            "elementType": "wire",
-            "name": "wire0"
-          }
-        },
-        {
-          "type": "CElement",
-          "data": {
-            "current": 0,
-            "voltage": 0,
-            "elementSize": 0,
-            "length": 0.2
-          }
-        },
-        {
-          "type": "CWire",
-          "data": {}
-        },
-        {
-          "type": "CLabel3D",
-          "data": {
-            "text": "\n0.00A\n0.00Vd",
-            "font": "48px Arial",
-            "backgroundColor": "rgba(0, 0, 0, 0.0)"
-          }
-        }
-      ]
-    },
-    {
       "id": 96,
       "elementType": "entity",
       "components": [
@@ -154,8 +96,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": -7.201039826129074e-10,
-            "voltage": 7.201039826129074e-10,
+            "current": 0,
+            "voltage": 0,
             "elementSize": 0.1,
             "length": 0.2
           }
@@ -163,7 +105,8 @@
         {
           "type": "CResistance",
           "data": {
-            "resistance": 1
+            "resistance": 1,
+            "heat": 0
           }
         },
         {
@@ -214,8 +157,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": -1.440207970266543e-9,
-            "voltage": 1.440207970266543e-9,
+            "current": 0,
+            "voltage": 0,
             "elementSize": 0.1,
             "length": 0.15000000000000002
           }
@@ -223,7 +166,8 @@
         {
           "type": "CResistance",
           "data": {
-            "resistance": 1
+            "resistance": 1,
+            "heat": 0
           }
         },
         {
@@ -274,8 +218,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": -1.4402079702665426e-9,
-            "voltage": -2.1603119572000743e-9,
+            "current": -9.77619806909959e-16,
+            "voltage": 0,
             "elementSize": 0.1,
             "length": 0.2
           }
@@ -288,6 +232,7 @@
             "radius": 0.025,
             "area": 0.001963495408493621,
             "length": 0.1,
+            "energy": 2.345740072082877e-31,
             "constant": 1
           }
         },
@@ -339,8 +284,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": 7.201039840531153e-10,
-            "voltage": -7.201039840531153e-10,
+            "current": 0,
+            "voltage": 0,
             "elementSize": 0.1,
             "length": 0.35000000000000003
           }
@@ -348,7 +293,8 @@
         {
           "type": "CResistance",
           "data": {
-            "resistance": 1
+            "resistance": 1,
+            "heat": 0
           }
         },
         {
@@ -399,8 +345,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": -1.4402079702665426e-9,
-            "voltage": 1.4402079702665427e-18,
+            "current": 0,
+            "voltage": 0,
             "elementSize": 0,
             "length": 0.10000000000000002
           }
@@ -457,8 +403,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": 7.201039826129074e-10,
-            "voltage": -7.201039826129074e-19,
+            "current": 0,
+            "voltage": 0,
             "elementSize": 0,
             "length": 0.15000000000000002
           }
@@ -515,8 +461,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": 1.4402079902264095e-9,
-            "voltage": -1.4402079902264095e-18,
+            "current": 0,
+            "voltage": 0,
             "elementSize": 0,
             "length": 0.10000000000000002
           }
@@ -633,8 +579,8 @@
         {
           "type": "CElement",
           "data": {
-            "current": -7.201039862134273e-10,
-            "voltage": 7.201039862134273e-19,
+            "current": 0,
+            "voltage": 0,
             "elementSize": 0,
             "length": 0.15000000000000002
           }
