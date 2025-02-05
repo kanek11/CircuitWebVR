@@ -14,10 +14,9 @@
 自由に実験することのほか、実際の九州大学入試問題を例として使用していただけます。  
 
 入試問題と解答は、以下のリンクからもアクセスできます 
-- [https://buturi0117.com/ kyusyu-university-buturi-2024-kaitoukaisetu/](#)  
-- [https://buturi0117.com/kyusyu-university-2023-buturi-kaitoukaisetu-1/](#)
-- [https://buturi0117.com/kyusyu-univercity-buturi2021-1-2/](#)
-
+- [https://buturi0117.com/kyusyu-university-buturi-2024-kaitoukaisetu/](https://buturi0117.com/kyusyu-university-buturi-2024-kaitoukaisetu/)
+- [https://buturi0117.com/kyusyu-university-2023-buturi-kaitoukaisetu-1/](https://buturi0117.com/kyusyu-university-2023-buturi-kaitoukaisetu-1/)
+- [https://buturi0117.com/kyusyu-univercity-buturi2021-1-2/](https://buturi0117.com/kyusyu-univercity-buturi2021-1-2/)
 
 これらの問題で出現した回路はすでに用意され、GUIの「Select Circuit」でロードできます。　　
 シミュレーションをいかに利用するかを考えながら、問題に取り組んでみてください。  

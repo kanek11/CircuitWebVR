@@ -421,13 +421,20 @@ export class SInteractSystem extends System {
 
         this.hoveredEntity = entity;
 
-        const group = entity.getComponent(COMP.CObject3D)!.group;
-        group.children.forEach((child) => {
-            if (!(child instanceof THREE.Mesh)) return;
-            const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
-            material.emissive.set(0x00ffff);
-            material.emissiveIntensity = 1;
-        });
+        const [element, nodeL, nodeR] = ENTT.getElementAndNode(entity);
+
+        for (const entity of [element, nodeL, nodeR]) {
+            const group = entity.getComponent(COMP.CObject3D)!.group;
+
+            group.children.forEach((child) => {
+                if (!(child instanceof THREE.Mesh)) return;
+                const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+                material.emissive.set(0x00ffff);
+                material.emissiveIntensity = 1;
+            });
+        }
+
+
 
 
     }
@@ -435,17 +442,20 @@ export class SInteractSystem extends System {
 
     deHoverEntity(): void {
         if (this.hoveredEntity) {
-            //console.log("interact: dehighlighted object");
+            //console.log("interact: dehighlighted object"); 
 
-            const entity = this.hoveredEntity;
+            const [element, nodeL, nodeR] = ENTT.getElementAndNode(this.hoveredEntity);
 
-            const group = entity.getComponent(COMP.CObject3D)!.group;
-            group.children.forEach((child) => {
-                if (!(child instanceof THREE.Mesh)) return;
-                const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
-                material.emissive.set(0x000000);
-                material.emissiveIntensity = 0.0;
-            });
+            for (const entity of [element, nodeL, nodeR]) {
+                const group = entity.getComponent(COMP.CObject3D)!.group;
+
+                group.children.forEach((child) => {
+                    if (!(child instanceof THREE.Mesh)) return;
+                    const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+                    material.emissive.set(0x000000);
+                    material.emissiveIntensity = 0;
+                });
+            }
         }
 
 

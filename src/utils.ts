@@ -69,13 +69,16 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
     //new: 
     const graphSystem = world.getSystem(SGraphSystem);
 
+
+    const controlFolder = gui.addFolder('Control');
+
     let entityName = 'Entity';
     if (entity.hasComponent(COMP.CElementMetaInfo)) {
         entityName = entity.getComponent(COMP.CElementMetaInfo)!.name;
+        controlFolder.add({ remove: () => ENTT.removeEntity(world, entity), }, 'remove').name('remove');
     }
     else {
-        console.warn("GUI: not an element entity");
-
+        //console.warn("GUI: not an element entity"); 
         if (!Globals.debugMode) {
             return;
         }
@@ -86,15 +89,12 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
     //[componentName: string]: Component‹any›
     const components = entity.getComponents();
 
-    const controlFolder = gui.addFolder('Control');
-    controlFolder.add({ remove: () => ENTT.removeEntity(world, entity), }, 'remove').name('remove');
-
     const monitorFolder = gui.addFolder('Monitor Properties');
 
 
 
     Object.entries(components).forEach(([componentName, componentInstance]) => {
-        //console.log("componentName: ", componentName);
+        //console.log("componentName: ", componentName); //tested, useless ids;
 
         // console.log("type: ", typeof (componentInstance));
         const typeName = componentInstance.constructor.name;
