@@ -640,6 +640,8 @@ export class SCurrentRenderSystem extends System {
 
     updateColorBySubsystem() {
 
+        Globals.potentialOffset = 0;
+
         const systemManager = this.world.getSystem(SSimulateSystem).systemManager;
         if (systemManager) {
             // this.showDebugGUI();  
