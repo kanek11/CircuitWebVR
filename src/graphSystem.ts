@@ -46,7 +46,7 @@ export class Graph2 {
     private yScale;
 
     private time = 0;
-    private timeScale = 1;
+    private timeScale = Globals.timeScale;
     private interval = 3; //contain 3s of data
 
     private maxDataPoints; // Limit number of points shown 
@@ -89,7 +89,8 @@ export class Graph2 {
 
         this.oY = this.height / 2;
         this.yScale = this.height / 2 * 1 / this.yRange;
-        this.maxDataPoints = Math.floor(this.interval / 0.016);
+        this.maxDataPoints = Math.floor(this.interval / this.timeScale / 0.016);
+        console.log("maxDataPoints: ", this.maxDataPoints);
         // Limit number of points shown, it's ok that the actual delta is not exactly 0.016s
 
 
@@ -104,7 +105,6 @@ export class Graph2 {
         this.yScale = this.height / 2 * 1 / this.yRange;
 
         this.clearCanvas();
-
     }
 
     setTimeScale(scale: number): void {
@@ -113,7 +113,7 @@ export class Graph2 {
         this.maxDataPoints = Math.floor(this.interval / scale / 0.016);
 
         this.clearCanvas();
-        //console.log("set time scale: ", scale, "interval: ", this.interval, "maxDataPoints: ", this.maxDataPoints);
+        console.log("maxDataPoints: ", this.maxDataPoints);
     }
 
 

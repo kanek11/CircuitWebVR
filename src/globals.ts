@@ -7,7 +7,7 @@ export type RenderMode = 'arrow' | 'particles';
 export const Globals = {
     debugMode: false,
 
-    timeScale: 1,
+    timeScale: 0.5,
 
     gridNum: 20,
     gridSize: 1.0,
