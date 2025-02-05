@@ -2,7 +2,7 @@
 *.pem
 *.crt
 *.key
-
+*.exe
 
 # Logs
 logs
