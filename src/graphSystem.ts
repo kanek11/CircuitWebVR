@@ -42,7 +42,7 @@ export class Graph2 {
     private oX = 0;
     private oY;
 
-    private yRange = 2; //range of y
+    private yRange = 1; //range of y
     private yScale;
 
     private time = 0;
@@ -104,6 +104,7 @@ export class Graph2 {
         this.yScale = this.height / 2 * 1 / this.yRange;
 
         this.clearCanvas();
+
     }
 
     setTimeScale(scale: number): void {
@@ -112,7 +113,7 @@ export class Graph2 {
         this.maxDataPoints = Math.floor(this.interval / scale / 0.016);
 
         this.clearCanvas();
-        console.log("set time scale: ", scale, "interval: ", this.interval, "maxDataPoints: ", this.maxDataPoints);
+        //console.log("set time scale: ", scale, "interval: ", this.interval, "maxDataPoints: ", this.maxDataPoints);
     }
 
 

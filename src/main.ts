@@ -427,7 +427,7 @@ class App {
 
     //systemGUI.add(app.timer, 'accumlatedTime').name('Time (s)').disable().listen();
 
-    systemGUI.add({ range: 2 }, 'range', 0.1, 10).name('Graph Range').step(0.1).onChange((value: number) => {
+    systemGUI.add({ range: 1 }, 'range', 0.1, 10).name('Graph Range').step(0.1).onChange((value: number) => {
       graphSystem.graph.setYRange(value);
     });
 
