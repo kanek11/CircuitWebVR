@@ -347,6 +347,9 @@ class Subsystem {
                 let voltSrc = entity.getComponent(COMP.CDCVoltage)!.voltage;
                 voltSrc += this.edgeVoltSrc.get([lEdgeID, 0]);
                 this.edgeVoltSrc.set([lEdgeID, 0], voltSrc);
+
+                //equivelent wire resistance
+                this.cond.set([lEdgeID, lEdgeID], 1.0e+9);
             }
 
             //update the conductance matrix
@@ -359,6 +362,23 @@ class Subsystem {
                 //warn: C, L overwrites this;
                 this.cond.set([lEdgeID, lEdgeID], 1.0e+9);
             }
+
+            if (entity.hasComponent(COMP.CWire)) {
+
+                const open = entity.getComponent(COMP.CWire)!.open;
+
+                let resistance: number;
+                if (open) {
+                    resistance = 1.0e+9;
+                }
+                else {
+                    resistance = 1.0e-9;
+                }
+
+                this.cond.set([lEdgeID, lEdgeID], 1 / resistance);
+            }
+
+
 
             if (entity.hasComponent(COMP.CCapacitance)) {
                 const cCapacitance = entity.getComponent(COMP.CCapacitance)!;
@@ -427,11 +447,6 @@ class Subsystem {
             if (!entity || !entity.hasComponent(COMP.CElement)) {
                 console.error("subsystem: invalid entity id: " + gEdgeID);
                 return;
-            }
-
-            const current = this.DCResult.edgeCurr.get([index, 0]);
-            if (current > 1.0e+6) {
-                this.shorted = true;
             }
 
             if (entity.hasComponent(COMP.CCapacitance)) {
@@ -505,6 +520,22 @@ class Subsystem {
                 this.cond.set([lEdgeID, lEdgeID], math.complex(1.0e+9, 0));
             }
 
+            if (entity.hasComponent(COMP.CWire)) {
+
+                const open = entity.getComponent(COMP.CWire)!.open;
+
+                let resistance: number;
+                if (open) {
+                    resistance = 1.0e+9;
+                }
+                else {
+                    resistance = 1.0e-9;
+                }
+
+                this.cond.set([lEdgeID, lEdgeID], 1 / resistance);
+            }
+
+
             if (entity.hasComponent(COMP.CCapacitance)) {
                 const cCapacitance = entity.getComponent(COMP.CCapacitance)!;
 
@@ -569,7 +600,6 @@ class Subsystem {
                     console.error("subsystem: invalid node id: " + gNodeID);
                     return;
                 }
-
                 const cNode = eNode.getMutableComponent(COMP.CNodeSim)!;
                 cNode.voltage = this.finalResult.nodeVolt.get([index, 0]);
 
@@ -585,9 +615,18 @@ class Subsystem {
                 return;
             }
 
+
             const cElement = entity.getMutableComponent(COMP.CElement)!;
             cElement.current = this.finalResult.edgeCurr.get([index, 0]);
             cElement.voltage = this.finalResult.edgeVolt.get([index, 0]);
+
+
+
+            const current = cElement.current;
+            if (current > 1.0e+6) {
+                this.shorted = true;
+            }
+
         });
 
 
@@ -753,6 +792,7 @@ export class SSimulateSystem extends System {
 
         elements: { components: [COMP.CElement, COMP.CTransform], listen: { added: true, removed: true, changed: [COMP.CTransform] } },
 
+        wires: { components: [COMP.CWire], listen: { added: true, removed: true, changed: [COMP.CWire] } },
         resistors: { components: [COMP.CResistance], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
         inductors: { components: [COMP.CInductance], listen: { added: true, removed: true, changed: [COMP.CInductance] } },
         capacitors: { components: [COMP.CCapacitance], listen: { added: true, removed: true, changed: [COMP.CCapacitance] } },
@@ -824,22 +864,27 @@ export class SSimulateSystem extends System {
             });
         }
 
-        if (this.systemManager && this.isACSrcChanged()) {
-            //new: init the subsystems
-            this.systemManager.subsystems.forEach(subsystem => {
-                subsystem.executeAC();
-                console.log("simulate: rebuild AC");
-            });
-        }
 
         let bShorted = false;
         if (this.systemManager && this.running) {
-            // this.showDebugGUI();  
-            for (const [key, system] of this.systemManager.subsystems) {
-                //console.log("simuate: execute delta: " + delta); 
-                system.update(delta, time);
+            //new: init the subsystems
+            this.systemManager.subsystems.forEach(subsystem => {
+                subsystem.executeAC();
 
-                if (system.shorted) {
+                if (subsystem.shorted) {
+                    bShorted = true;
+                }
+                //console.log("simulate: rebuild AC");
+            });
+        }
+
+        if (this.systemManager && this.running) {
+            // this.showDebugGUI();  
+            for (const [key, subSystem] of this.systemManager.subsystems) {
+                //console.log("simuate: execute delta: " + delta); 
+                subSystem.update(delta, time);
+
+                if (subSystem.shorted) {
                     bShorted = true;
                 }
 

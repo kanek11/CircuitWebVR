@@ -150,9 +150,9 @@ export function showPropertiesGUI2(entity: Entity, gui: GUI, world: World) {
             }
 
             else if (fieldSchema.type === Types.Boolean) {
-                if (Globals.debugMode) {
-                    compFolder.add(componentInstance, key).name(key).listen();
-                }
+
+                compFolder.add(componentInstance, key).name(key).listen();
+
             }
             else if (fieldSchema.type === Types.Number) {
                 const numberSchema = fieldSchema as COMP.ComponentSchemaProp_Number;

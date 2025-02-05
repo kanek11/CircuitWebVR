@@ -42,7 +42,7 @@ export class Graph2 {
     private oX = 0;
     private oY;
 
-    private yRange = 1; //range of y
+    private yRange = 2; //range of y
     private yScale;
 
     private time = 0;

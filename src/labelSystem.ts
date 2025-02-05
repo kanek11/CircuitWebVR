@@ -102,7 +102,13 @@ export class SLabelSystem extends System {
         this.queries.DCVoltages.results.forEach(entity => {
             const voltage = entity.getComponent(COMP.CDCVoltage)!;
             const label = entity.getMutableComponent(COMP.CLabel3D)!;
-            label.text = `${voltage.voltage.toFixed(2)}V`;
+            label.text = `${voltage.voltage.toFixed(1)}V`;
+        });
+
+        this.queries.ACVoltages.results.forEach(entity => {
+            const cAC = entity.getComponent(COMP.CACVoltage)!;
+            const label = entity.getMutableComponent(COMP.CLabel3D)!;
+            label.text = `${cAC.amp.toFixed(1)}sin(${cAC.freq.toFixed(1)}t)V`;
         });
 
         this.queries.inductors.results.forEach(entity => {

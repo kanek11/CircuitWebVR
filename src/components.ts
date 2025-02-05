@@ -164,6 +164,11 @@ export class CObject3D extends Component<CObject3D> {
 }
 
 export class CWire extends Component<CWire> {
+    open!: boolean;
+
+    static schema = {
+        open: { type: Types.Boolean, default: false },
+    } as const;
 }
 
 
@@ -379,7 +384,7 @@ export class CLabel3D extends Component<CLabel3D> {
 
     static schema = {
         text: { type: Types.String, default: 'emptyText' },
-        font: { type: Types.String, default: '48px Arial' },
+        font: { type: Types.String, default: '40px Arial' },
         backgroundColor: { type: Types.String, default: Globals.labelColor },
         sprite: { type: Types.Ref, default: null },
     } as const;

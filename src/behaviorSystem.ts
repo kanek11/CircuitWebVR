@@ -36,6 +36,8 @@ export class SElementBehaviorSystem extends System {
         elements: { components: [COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CElement] } },
         nodes: { components: [COMP.CNode, COMP.CNodeSim], listen: { added: true, removed: true, changed: [COMP.CNodeSim] } },
 
+
+        wires: { components: [COMP.CWire, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CWire] } },
         resistors: { components: [COMP.CResistance, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CResistance] } },
         inductors: { components: [COMP.CInductance, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CInductance] } },
         capacitors: { components: [COMP.CCapacitance, COMP.CElement], listen: { added: true, removed: true, changed: [COMP.CCapacitance] } },
@@ -121,6 +123,16 @@ export class SElementBehaviorSystem extends System {
             cCapacitance.field = field;
         });
 
+
+        this.queries.wires.results.forEach(entity => {
+            if (!entity.alive) {
+                console.error("entity is not alive");
+                return;
+            }
+
+            //update the wire model
+            ENTT.syncWireElementModel(entity, true);
+        });
 
 
 
@@ -390,7 +402,7 @@ export class SCurrentRenderSystem extends System {
 
                 this.spawnParticles(entity, particles);
 
-                console.log("respawn particles: " + particles.children.length);
+                //console.log("respawn particles: " + particles.children.length);
             });
         }
 

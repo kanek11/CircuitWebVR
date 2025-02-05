@@ -574,13 +574,14 @@ export function syncElementTransform(element: Entity): void {
 }
 
 
-export function syncWireElementModel(element: Entity): void {
+export function syncWireElementModel(element: Entity, elementChanged: boolean = false): void {
     if (!element.hasComponent(COMP.CWire)) {
         console.error("sync model: not a wire!");
         return;
     }
 
     const cElement = element.getComponent(COMP.CElement)!;
+    const cWire = element.getComponent(COMP.CWire)!;
     const length = cElement.length;
 
     const group = element.getComponent(COMP.CObject3D)!.group as THREE.Group;
@@ -588,7 +589,8 @@ export function syncWireElementModel(element: Entity): void {
     const wireMeshR = group.getObjectByName("wireR") as THREE.Mesh;
 
     //syncWireModels(element, size / 2, -size / 2, 0.1, length);
-    syncWireModel(wireMeshL, Dir.LEFT * length / 2, 0);
+    const open = cWire.open;
+    syncWireModel(wireMeshL, Dir.LEFT * length / 2, 0, open);
     syncWireModel(wireMeshR, 0, Dir.RIGHT * length / 2);
 
     //console.log("sync wire model");
@@ -760,12 +762,24 @@ export function syncInductanceModel(element: Entity, elementChanged: boolean = f
 
 
 
-export function syncWireModel(wireMesh: Mesh, lPosX: number, rPosX: number): void {
+export function syncWireModel(wireMesh: Mesh, lPosX: number, rPosX: number, open: boolean = false): void {
 
     const mid = (lPosX + rPosX) / 2;
     const length = Math.abs(rPosX - lPosX);
 
     //set local    
-    wireMesh.position.x = mid;
+
     wireMesh.scale.y = length;
+    wireMesh.position.x = mid;
+
+
+    if (open) {
+        wireMesh.position.x = length - length * Math.sqrt(2) / 2 / 2;
+        wireMesh.rotation.y = Math.PI / 4;
+        wireMesh.position.z = length * Math.sqrt(2) / 2 / 2;
+    }
+    else {
+        wireMesh.rotation.y = 0;
+        wireMesh.position.z = 0;
+    }
 }

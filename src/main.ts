@@ -411,6 +411,7 @@ class App {
       else if (value === 'VR') {
         renderSystem.setViewMode('VR');
         app.initXR();
+        Globals.XRMode = true;
         console.log("toggle VR view");
       }
 
@@ -426,12 +427,12 @@ class App {
 
     //systemGUI.add(app.timer, 'accumlatedTime').name('Time (s)').disable().listen();
 
-    systemGUI.add({ range: 1 }, 'range', 0.1, 10).name('Graph Range').step(0.1).onChange((value: number) => {
+    systemGUI.add({ range: 2 }, 'range', 0.1, 10).name('Graph Range').step(0.1).onChange((value: number) => {
       graphSystem.graph.setYRange(value);
     });
 
 
-    systemGUI.add(Globals, 'heightByPotential').name('Show Height').onChange((value: boolean) => {
+    systemGUI.add(Globals, 'heightByPotential').name('enable height').onChange((value: boolean) => {
       if (value) {
         behaivorSystem.onHeightOn();
       } else {
@@ -440,7 +441,6 @@ class App {
     });
 
     systemGUI.add(Globals, 'showSimInfo').name('Show sim data');
-
 
     systemGUI.add(Globals, 'renderMode', ['particles', 'arrow']).name('currentRender').onChange((value: string) => {
       Globals.renderMode = value as 'particles' | 'arrow';

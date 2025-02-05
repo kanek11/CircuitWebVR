@@ -338,6 +338,8 @@ export class SRenderSystem extends System {
         this.renderer.xr.updateCamera(this.main_camera!);
     }
 
+
+
     initXR(): void {
         console.log("init XR");
 
@@ -359,8 +361,9 @@ export class SRenderSystem extends System {
         };
 
         const vrButton = VRButton.createButton(this.renderer, sessionInit);
-        document.body.appendChild(vrButton);
         this.vrButton = vrButton;
+
+        document.body.appendChild(vrButton);
         ['pointerdown', 'pointerup'].forEach(eventType => {
             vrButton.addEventListener(eventType, (event) => {
                 event.stopPropagation();
@@ -372,10 +375,8 @@ export class SRenderSystem extends System {
         this.main_camera!.position.z = 0;
         this.main_camera!.lookAt(0, height, -forward);
 
-
         // todo: adjust camera control as camera update
         this.cameraControl!.target.set(0, height, -forward);
-
 
 
         this.initXRControls();

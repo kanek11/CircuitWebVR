@@ -95,7 +95,7 @@ export class SBrowserSystem extends System {
 
     onPointerdown(event: PointerEvent): void {
 
-        console.log("browser: trigger pointer down");
+        //console.log("browser: trigger pointer down");
         this.bDragging = true;
 
         const interactSystem = this.world.getSystem(SInteractSystem);

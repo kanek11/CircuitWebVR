@@ -13,7 +13,7 @@ export const Globals = {
     gridSize: 1.0,
     gridSpacing: 1.0 / 20,
 
-    isXRMode: false,
+    XRMode: false,
 
     //defaultCanvasSize: { width: 800, height: 600 },  
     backGroundColor: 'rgb(175, 175, 175)',
